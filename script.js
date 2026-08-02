@@ -70,6 +70,7 @@ const DEFAULT_STATE = {
   provider: 'deepseek',  // 'deepseek' or 'openai'
   soundLevel: 'medium',  // 'low' | 'medium' | 'high'
   pet: null,              // { type: 'dragon'|'cat'|'plant'|'ghost', name: string }
+  coachChats: {},         // { [stepId]: [{ role, content }] } — persisted chat history
 };
 
 let state = loadState();
@@ -691,6 +692,25 @@ function completeQuest() {
   burstParticles(rect.left + rect.width / 2, rect.top, 20, '🎉');
   playSound('questComplete');
 
+  // Pet celebrates
+  playPetAnimation('happy');
+  spawnPetHearts(8);
+  setTimeout(() => showPetSpeech('You did it!! What\'s our next quest? 🗺️'), 800);
+
+  // Guide user to next quest — highlight input after fanfare settles
+  setTimeout(() => {
+    $taskInput.placeholder = 'Nice work! What\'s your next quest? ⚔️';
+    $taskInput.focus();
+    $taskInput.style.borderColor = 'var(--primary)';
+    $taskInput.style.boxShadow = '0 0 0 3px var(--primary-light)';
+    // Fade highlight after a few seconds
+    setTimeout(() => {
+      $taskInput.style.borderColor = '';
+      $taskInput.style.boxShadow = '';
+      $taskInput.placeholder = 'e.g. "Write my history essay" or "Clean my room" or "Study for calc midterm"';
+    }, 4000);
+  }, 1500);
+
   saveState();
 }
 
@@ -733,13 +753,19 @@ function renderQuestBoard() {
 
 // ---- AI COACH PANEL ----
 let coachStepId = null;       // which step the panel is open for
-let coachMessages = [];       // [{ role, content }] — ephemeral, not persisted
 
 const COACH_QUICK_ACTIONS = {
   brainstorm: 'Help me brainstorm 3 quick ideas related to this step. Keep each idea very short.',
   explain:    'Explain this step to me in a completely different way. Maybe with an analogy or a metaphor.',
   starter:    'Write me ONE tiny starter sentence or phrase I can copy-paste to begin this step right now.',
   guide:      'Ask me one guiding question that helps me figure out what\'s blocking me on this step.',
+};
+
+const COACH_ACTION_LABELS = {
+  brainstorm: 'Brainstorm 3 quick ideas',
+  explain:    'Explain this step differently',
+  starter:    'Write a starter sentence',
+  guide:      'Guide me with a question',
 };
 
 const $coachOverlay  = document.getElementById('coach-overlay');
@@ -751,20 +777,38 @@ const $coachSendBtn  = document.getElementById('coach-send-btn');
 const $coachCloseBtn = document.getElementById('coach-close-btn');
 const $coachQuickBtns = document.querySelectorAll('.coach-quick-btn');
 
+function getCoachChat(stepId) {
+  if (!state.coachChats[stepId]) state.coachChats[stepId] = [];
+  return state.coachChats[stepId];
+}
+
 function openCoachPanel(stepId) {
   if (!state.activeQuest) return;
   const step = state.activeQuest.steps.find(s => s.id === stepId);
   if (!step) return;
 
   coachStepId = stepId;
-  coachMessages = [];
+  const chat = getCoachChat(stepId);
+
   $coachContext.textContent = `Step: "${step.title}"`;
-  $coachMessages.innerHTML = `
-    <div class="coach-msg coach-msg-system">
-      👋 I'm your ADHD coach! This step: <strong>${escapeHtml(step.title)}</strong>.<br>
-      Click a quick action or type anything you're stuck on.
-    </div>
-  `;
+
+  // Render chat history + welcome if empty
+  let html = '';
+  if (chat.length === 0) {
+    html = `
+      <div class="coach-msg coach-msg-system">
+        👋 I'm your ADHD coach! This step: <strong>${escapeHtml(step.title)}</strong>.<br>
+        Click a quick action or type anything you're stuck on.
+      </div>
+    `;
+  } else {
+    html = chat.map(m => {
+      const cls = m.role === 'user' ? 'coach-msg-user' : 'coach-msg-assistant';
+      return `<div class="coach-msg ${cls}">${escapeHtml(m.content)}</div>`;
+    }).join('');
+  }
+  $coachMessages.innerHTML = html;
+  $coachMessages.scrollTop = $coachMessages.scrollHeight;
   $coachInput.value = '';
   $coachOverlay.style.display = '';
   $coachPanel.style.display = '';
@@ -775,7 +819,7 @@ function closeCoachPanel() {
   $coachOverlay.style.display = 'none';
   $coachPanel.style.display = 'none';
   coachStepId = null;
-  coachMessages = [];
+  // Chat history stays in state.coachChats — persists across reopens
 }
 
 function appendCoachMessage(role, content) {
@@ -812,15 +856,18 @@ async function sendCoachMessage(text) {
   // Disable input while waiting
   $coachInput.disabled = true;
   $coachSendBtn.disabled = true;
+  $coachQuickBtns.forEach(b => b.disabled = true);
 
+  const chat = getCoachChat(coachStepId);
   appendCoachMessage('user', trimmed);
-  coachMessages.push({ role: 'user', content: trimmed });
+  chat.push({ role: 'user', content: trimmed });
+  saveState();
   showCoachTyping();
 
   try {
     const payload = IS_PRODUCTION
-      ? { mode: 'coach', step_title: step.title, messages: coachMessages }
-      : { mode: 'coach', step_title: step.title, messages: coachMessages, api_key: state.apiKey || $apiKeyInput.value.trim(), provider: state.provider };
+      ? { mode: 'coach', step_title: step.title, messages: chat }
+      : { mode: 'coach', step_title: step.title, messages: chat, api_key: state.apiKey || $apiKeyInput.value.trim(), provider: state.provider };
 
     const res = await fetch('/api/questify', {
       method: 'POST',
@@ -835,7 +882,8 @@ async function sendCoachMessage(text) {
     } else {
       const reply = data.reply || 'Hmm, I didn\'t quite catch that. Can you say it differently?';
       appendCoachMessage('assistant', reply);
-      coachMessages.push({ role: 'assistant', content: reply });
+      chat.push({ role: 'assistant', content: reply });
+      saveState();
     }
   } catch (err) {
     hideCoachTyping();
@@ -844,8 +892,18 @@ async function sendCoachMessage(text) {
 
   $coachInput.disabled = false;
   $coachSendBtn.disabled = false;
+  $coachQuickBtns.forEach(b => b.disabled = false);
   $coachInput.focus();
   $coachInput.value = '';
+}
+
+// Clean orphaned chats when quest/step structure changes
+function cleanOrphanedCoachChats() {
+  if (!state.activeQuest) { state.coachChats = {}; return; }
+  const validIds = new Set(state.activeQuest.steps.map(s => s.id));
+  for (const id of Object.keys(state.coachChats)) {
+    if (!validIds.has(id)) delete state.coachChats[id];
+  }
 }
 
 function handleCoachQuickAction(action) {
@@ -897,6 +955,7 @@ async function subdivideStep(stepId) {
     // Remove completed entry for the old step if any
     state.completedStepIds = state.completedStepIds.filter(id => id !== stepId);
 
+    cleanOrphanedCoachChats();
     saveState();
     renderQuestBoard();
     showToast(`🔍 Broken into ${subSteps.length} tinier steps!`);
@@ -993,6 +1052,10 @@ async function handleQuestify() {
     state.activeQuest = { task, steps };
     state.completedStepIds = [];
     state.questCompleted = false;
+    state.coachChats = {}; // fresh quest, fresh chats
+
+    // Reset input placeholder
+    $taskInput.placeholder = 'e.g. "Write my history essay" or "Clean my room" or "Study for calc midterm"';
 
     // Save API key if entered
     if ($apiKeyInput.value.trim()) {
