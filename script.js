@@ -176,10 +176,27 @@ function selectPetOption(type) {
 
 function skipPet() {
   $petModal.style.display = 'none';
-  $petSanctuary.style.display = 'none';
-  // Show a small + button so user can get a pet later
+  // Keep the sanctuary visible, but hide the pet and show only the + button
+  $petSanctuary.style.display = '';
+  hidePetContent();
   const $addBtn = document.getElementById('pet-add-btn');
   if ($addBtn) $addBtn.style.display = '';
+}
+
+// Hide all pet internals (speech, dots, avatar, name tag) — used after skipping
+function hidePetContent() {
+  ['pet-speech', 'pet-dots', 'pet-avatar-wrap', 'pet-name-tag'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+}
+
+// Restore all pet internals — used when confirming a pet
+function showPetContent() {
+  ['pet-speech', 'pet-dots', 'pet-avatar-wrap', 'pet-name-tag'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = '';
+  });
 }
 
 function reopenPetModal() {
@@ -206,6 +223,11 @@ function confirmPet() {
 
   // Hide modal
   $petModal.style.display = 'none';
+
+  // Restore any hidden pet internals (in case user skipped first)
+  showPetContent();
+  const $addBtn = document.getElementById('pet-add-btn');
+  if ($addBtn) $addBtn.style.display = 'none';
 
   // Show sanctuary with a little bounce-in
   renderPetSanctuary();
