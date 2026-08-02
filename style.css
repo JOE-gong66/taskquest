@@ -260,6 +260,10 @@ main {
 }
 
 .board-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
   margin-bottom: 20px;
 }
 
@@ -270,6 +274,24 @@ main {
 .board-subtitle {
   color: var(--text-muted);
   font-size: 0.9rem;
+}
+
+.focus-toggle-btn {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition);
+  flex-shrink: 0;
+}
+
+.focus-toggle-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
 .steps-grid {
@@ -308,6 +330,47 @@ main {
 .step-card.completed .step-title {
   text-decoration: line-through;
   color: var(--text-muted);
+}
+
+/* Collapsed step (focus mode) — slim bar, hint that more steps are tucked away */
+.step-card-collapsed {
+  border-style: dashed;
+  border-color: var(--border);
+  background: transparent;
+  padding: 10px 18px;
+  opacity: .75;
+  justify-content: flex-start;
+  gap: 12px;
+}
+
+.step-card-collapsed:hover {
+  border-color: var(--primary);
+  opacity: 1;
+}
+
+.step-card-collapsed .step-number {
+  width: 28px;
+  height: 28px;
+  font-size: 0.78rem;
+}
+
+.step-card-collapsed .step-title {
+  font-weight: 500;
+  font-size: 0.88rem;
+}
+
+.collapsed-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.step-card-collapsed .collapsed-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .step-number {
@@ -1347,6 +1410,31 @@ footer p { margin-bottom: 2px; }
   .pet-choices {
     grid-template-columns: 1fr 1fr;
     gap: 8px;
+  }
+
+  /* Coach panel becomes a bottom sheet on mobile — full width, slides up */
+  .coach-panel {
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-width: 100%;
+    height: 72vh;
+    border-left: none;
+    border-top: 1px solid var(--border);
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -6px 32px rgba(45, 35, 24, 0.18);
+    animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .coach-overlay {
+    background: rgba(45, 35, 24, 0.45);
+  }
+
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
   }
 }
 

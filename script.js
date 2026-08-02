@@ -71,6 +71,7 @@ const DEFAULT_STATE = {
   soundLevel: 'medium',  // 'low' | 'medium' | 'high'
   pet: null,              // { type: 'dragon'|'cat'|'plant'|'ghost', name: string }
   coachChats: {},         // { [stepId]: [{ role, content }] } — persisted chat history
+  focusMode: true,        // true = only show completed steps + next step (ADHD-friendly)
 };
 
 let state = loadState();
@@ -821,8 +822,27 @@ function renderQuestBoard() {
   const allDone = steps.every(s => state.completedStepIds.includes(s.id));
   $questBanner.style.display = allDone ? '' : 'none';
 
+  // Focus mode: only the next undone step is fully visible; others collapse into slim bars.
+  const focusOn = state.focusMode;
+  const $focusBtn = document.getElementById('focus-toggle-btn');
+  if ($focusBtn) $focusBtn.textContent = focusOn ? '🔎 Just the next step' : '📋 Show all steps';
+
+  const nextUndoneIdx = steps.findIndex(s => !state.completedStepIds.includes(s.id));
+
   $stepsGrid.innerHTML = steps.map((s, i) => {
     const done = state.completedStepIds.includes(s.id);
+
+    // Collapse step if focus mode is on and this is neither done nor the next step
+    if (focusOn && !done && i !== nextUndoneIdx) {
+      return `
+        <div class="step-card step-card-collapsed" onclick="toggleFocusMode()" title="Show all steps">
+          <div class="step-number">${i + 1}</div>
+          <div class="step-title collapsed-title">${escapeHtml(s.title)}</div>
+          <span class="collapsed-hint">tap to reveal ↓</span>
+        </div>
+      `;
+    }
+
     return `
       <div class="step-card ${done ? 'completed' : ''}" data-step-id="${s.id}" onclick="completeStep('${s.id}', event)">
         <div class="step-number">${done ? '✓' : i + 1}</div>
@@ -852,6 +872,16 @@ function renderQuestBoard() {
       </div>
     `;
   }
+}
+
+// Toggle between "just the next step" (focused) and "show all steps"
+function toggleFocusMode() {
+  state.focusMode = !state.focusMode;
+  saveState();
+  renderQuestBoard();
+  // A little nudge to explain what just happened
+  if (state.focusMode) showToast('🔎 Showing only your next step — one thing at a time.');
+  else showToast('📋 All steps shown — you can see the whole path.');
 }
 
 // ---- AI COACH PANEL ----
