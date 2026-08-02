@@ -1,0 +1,11 @@
+{
+  "name": "taskquest",
+  "version": "1.0.0",
+  "description": "Turn overwhelming tasks into tiny, game-like quests — built for neurodivergent learners.",
+  "scripts": {
+    "dev": "python server.py"
+  },
+  "dependencies": {
+    "@netlify/functions": "^2.6.0"
+  }
+}

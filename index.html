@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TaskQuest — Turn Tasks into Quests</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- ===== HEADER / STATS BAR ===== -->
+  <header class="stats-bar">
+    <div class="logo">⚔️ TaskQuest</div>
+    <div class="stats">
+      <div class="stat" id="stat-level">
+        <span class="stat-icon">🎖️</span>
+        <span class="stat-label">Lv.<span id="level-num">1</span></span>
+      </div>
+      <div class="stat" id="stat-xp">
+        <span class="stat-icon">✨</span>
+        <div class="xp-bar-wrap">
+          <div class="xp-bar" id="xp-bar"></div>
+        </div>
+        <span class="stat-label"><span id="xp-current">0</span> XP</span>
+      </div>
+      <div class="stat" id="stat-coins">
+        <span class="stat-icon">🪙</span>
+        <span class="stat-label" id="coins-num">0</span>
+      </div>
+      <div class="stat" id="stat-streak">
+        <span class="stat-icon">🔥</span>
+        <span class="stat-label"><span id="streak-num">0</span> streak</span>
+      </div>
+      <div class="stat" id="stat-sound">
+        <button id="sound-btn" class="sound-btn" title="Sound level">
+          <span id="sound-icon">🔊</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===== MAIN CONTENT ===== -->
+  <main>
+    <!-- Input Zone -->
+    <section class="input-zone">
+      <h1>What quest are you stuck on?</h1>
+      <p class="subtitle">Type anything. We'll break it into tiny, unfreezable steps.</p>
+      <div class="input-row">
+        <textarea
+          id="task-input"
+          placeholder='e.g. "Write my history essay" or "Clean my room" or "Study for calc midterm"'
+          rows="2"
+          maxlength="300"
+        ></textarea>
+        <button id="questify-btn" class="btn-primary">
+          ⚡ Questify!
+        </button>
+      </div>
+      <div class="api-key-row">
+        <select id="provider-select" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.85rem;background:var(--bg);font-family:var(--font);">
+          <option value="deepseek">DeepSeek</option>
+          <option value="openai">OpenAI</option>
+        </select>
+        <input type="password" id="api-key" placeholder="Paste your API key here (stays on your machine)" />
+        <button id="demo-btn" class="btn-ghost">or try Demo mode</button>
+      </div>
+    </section>
+
+    <!-- Quest Board -->
+    <section class="quest-board" id="quest-board" style="display:none;">
+      <div class="board-header">
+        <h2>🗺️ Your Quest</h2>
+        <span class="board-subtitle" id="original-task"></span>
+      </div>
+      <div class="steps-grid" id="steps-grid">
+        <!-- Cards injected by JS -->
+      </div>
+      <div class="quest-complete-banner" id="quest-complete-banner" style="display:none;">
+        🎉 QUEST COMPLETE! +<span id="quest-xp-bonus">50</span> XP bonus!
+      </div>
+    </section>
+
+    <!-- Daily Quests -->
+    <section class="daily-quests" id="daily-quests-section" style="display:none;">
+      <h2>📋 Daily Quests</h2>
+      <p class="subtitle">3 tiny quests, picked for you. No decisions needed.</p>
+      <div class="daily-grid" id="daily-grid">
+        <!-- Injected by JS -->
+      </div>
+    </section>
+
+    <!-- Empty State (shown before first quest) -->
+    <section class="empty-state" id="empty-state">
+      <div class="empty-illustration">🐉</div>
+      <h2>Ready to slay your first dragon?</h2>
+      <p>Paste your API key above, type a task, and hit <strong>Questify!</strong></p>
+      <p class="hint">No API key? Click "Demo mode" to try with sample data.</p>
+    </section>
+  </main>
+
+  <!-- ===== TOAST / REWARD POPUP ===== -->
+  <div class="toast" id="toast" style="display:none;">
+    <span class="toast-msg" id="toast-msg"></span>
+  </div>
+
+  <!-- ===== PARTICLE CONTAINER ===== -->
+  <div class="particles" id="particles"></div>
+
+  <!-- ===== FOOTER ===== -->
+  <footer>
+    <p>Built for neurodivergent learners, by a neurodivergent learner · IncludAI 2026</p>
+    <p>All data stays in your browser. Nothing is sent anywhere except your task text → OpenAI API.</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
