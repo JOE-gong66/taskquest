@@ -714,6 +714,7 @@ function completeStep(stepId, event) {
     showPetSpeech('No worries! Try again 💪');
     showToast('↩️ Undone — rewards reversed.');
     updateStatsBar();
+    renderQuestBoard();      // re-collapse steps — undone step should hide again
     renderDailyQuests();
     saveState();
     return;
@@ -736,6 +737,8 @@ function completeStep(stepId, event) {
     const allDone = state.activeQuest.steps.every(s => state.completedStepIds.includes(s.id));
     if (allDone) completeQuest();
   }
+
+  renderQuestBoard();       // reveal the next step in focus mode
 
   // Also check daily quests
   renderDailyQuests();
