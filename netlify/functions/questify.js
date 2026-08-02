@@ -64,9 +64,9 @@ exports.handler = async (event) => {
     return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
   }
 
-  const apiKey = process.env.DEEPSEEK_API_KEY;
+  const apiKey = process.env.ds;
   if (!apiKey) {
-    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Server missing DEEPSEEK_API_KEY env var.' }) };
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Server missing ds env var.' }) };
   }
 
   let body;
