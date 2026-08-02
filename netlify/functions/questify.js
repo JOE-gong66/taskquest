@@ -1,11 +1,13 @@
 /**
  * TaskQuest — Netlify serverless function
- * Proxies the DeepSeek API so the API key stays in Netlify's env vars
- * (never exposed to the browser). Also solves CORS.
+ * Proxies the DeepSeek API. Supports 3 modes:
+ *   breakdown (default) — full task → micro-steps
+ *   subdivide — one step → even smaller sub-steps
+ *   coach     — conversational ADHD coach for a specific step
  *
- * Set env var DEEPSEEK_API_KEY in Netlify dashboard.
+ * Set env var `ds` in Netlify dashboard with your DeepSeek API key.
  */
-const SYSTEM_PROMPT = `You are an ADHD-friendly task coach. Your job is to break down a big, overwhelming task into tiny, impossibly-easy micro-steps.
+const BREAKDOWN_PROMPT = `You are an ADHD-friendly task coach. Your job is to break down a big, overwhelming task into tiny, impossibly-easy micro-steps.
 
 RULES:
 - Each step should take 2–15 minutes. No step is too small.
@@ -22,6 +24,34 @@ FORMAT:
 }
 
 Give 4–7 steps. The first step must be absurdly easy — something the user can do in under 3 minutes.`;
+
+const SUBDIVIDE_PROMPT = `You are an ADHD-friendly task coach. A user has a single micro-step that still feels too big. Break it into 2–3 even tinier sub-steps.
+
+RULES:
+- Each sub-step must take 1–5 minutes. Make them absurdly easy to start.
+- Language: warm, encouraging, zero judgment.
+- Each sub-step needs a 1-sentence "hint".
+- Output ONLY valid JSON. No markdown, no extra text.
+
+FORMAT:
+{
+  "steps": [
+    { "title": "...", "hint": "...", "minutes": 2 },
+    { "title": "...", "hint": "...", "minutes": 3 }
+  ]
+}`;
+
+const COACH_SYSTEM = `You are an ADHD-friendly task coach helping a user work through a specific micro-step.
+
+The user's current step is described below. Your job is to guide them warmly — ask questions, offer tiny nudges, brainstorm with them.
+
+RULES:
+- Keep responses short: 2–5 sentences.
+- Warm, encouraging, zero judgment. Never say "just" or "simply."
+- Guide with questions rather than giving orders.
+- If they're stuck, offer ONE tiny concrete action — not a list.
+- Match their energy. If they sound overwhelmed, be extra gentle.
+- Use emoji occasionally for warmth.`;
 
 function parseLLMResponse(content) {
   let jsonStr = content.trim();
@@ -48,7 +78,6 @@ function parseLLMResponse(content) {
 }
 
 exports.handler = async (event) => {
-  // CORS headers (Netlify Functions handle preflight separately)
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
@@ -76,12 +105,57 @@ exports.handler = async (event) => {
     return { statusCode: 400, headers, body: JSON.stringify({ error: 'Bad JSON body' }) };
   }
 
-  const task = (body.task || '').toString().trim();
-  if (!task) {
-    return { statusCode: 400, headers, body: JSON.stringify({ error: 'No task provided.' }) };
-  }
+  const mode = body.mode || 'breakdown';
 
   try {
+    let systemPrompt, userMessage, maxTokens;
+
+    if (mode === 'coach') {
+      // --- Coach mode: conversational ---
+      const stepTitle = (body.step_title || '').toString().trim();
+      if (!stepTitle) {
+        return { statusCode: 400, headers, body: JSON.stringify({ error: 'No step_title provided.' }) };
+      }
+      systemPrompt = COACH_SYSTEM;
+      const messages = body.messages || [];
+      const msgs = [
+        { role: 'system', content: COACH_SYSTEM },
+        { role: 'system', content: `Current step the user is working on: "${stepTitle}"` },
+        ...messages,
+      ];
+      maxTokens = 400;
+      const res = await fetch('https://api.deepseek.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({ model: 'deepseek-chat', messages: msgs, temperature: 0.8, max_tokens: maxTokens }),
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        return { statusCode: res.status, headers, body: JSON.stringify({ error: `DeepSeek API error: ${errText.slice(0, 200)}` }) };
+      }
+      const data = await res.json();
+      return { statusCode: 200, headers, body: JSON.stringify({ reply: data.choices[0].message.content }) };
+    }
+
+    // --- Breakdown / Subdivide mode: return structured steps ---
+    const task = (body.task || '').toString().trim();
+    if (!task) {
+      return { statusCode: 400, headers, body: JSON.stringify({ error: 'No task provided.' }) };
+    }
+
+    if (mode === 'subdivide') {
+      systemPrompt = SUBDIVIDE_PROMPT;
+      userMessage = `This step still feels too big: "${task}". Break it into 2–3 even smaller sub-steps.`;
+    } else {
+      // default: breakdown
+      systemPrompt = BREAKDOWN_PROMPT;
+      userMessage = `Break down this task for me: "${task}"`;
+    }
+    maxTokens = 1000;
+
     const res = await fetch('https://api.deepseek.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -91,11 +165,11 @@ exports.handler = async (event) => {
       body: JSON.stringify({
         model: 'deepseek-chat',
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: `Break down this task for me: "${task}"` },
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage },
         ],
         temperature: 0.7,
-        max_tokens: 1000,
+        max_tokens: maxTokens,
       }),
     });
 

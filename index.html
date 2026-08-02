@@ -7,6 +7,22 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <!-- ===== PET SELECTION MODAL ===== -->
+  <div class="pet-modal-overlay" id="pet-modal">
+    <div class="pet-modal-card">
+      <h2>🐾 Choose Your Companion!</h2>
+      <p class="pet-modal-sub">They'll grow with you as you complete quests.</p>
+      <div class="pet-choices" id="pet-choices">
+        <!-- JS injected -->
+      </div>
+      <div class="pet-name-row">
+        <label for="pet-name-input">Name your friend:</label>
+        <input type="text" id="pet-name-input" placeholder="e.g. 小火焰" maxlength="10" autocomplete="off">
+      </div>
+      <button class="btn-primary" id="pet-confirm-btn" disabled>✨ Start Adventure!</button>
+    </div>
+  </div>
+
   <!-- ===== HEADER / STATS BAR ===== -->
   <header class="stats-bar">
     <div class="logo">⚔️ TaskQuest</div>
@@ -102,6 +118,33 @@
     <span class="toast-msg" id="toast-msg"></span>
   </div>
 
+  <!-- ===== AI COACH PANEL ===== -->
+  <div class="coach-overlay" id="coach-overlay" style="display:none;"></div>
+  <div class="coach-panel" id="coach-panel" style="display:none;">
+    <div class="coach-header">
+      <div>
+        <div class="coach-header-label">💬 AI Coach</div>
+        <div class="coach-step-context" id="coach-step-context"></div>
+      </div>
+      <button class="coach-close-btn" id="coach-close-btn">✕</button>
+    </div>
+    <div class="coach-quick-actions" id="coach-quick-actions">
+      <button class="coach-quick-btn" data-action="brainstorm">🧠 Brainstorm ideas</button>
+      <button class="coach-quick-btn" data-action="explain">🔄 Explain differently</button>
+      <button class="coach-quick-btn" data-action="starter">📝 Write a starter</button>
+      <button class="coach-quick-btn" data-action="guide">💡 Guide me with a question</button>
+    </div>
+    <div class="coach-messages" id="coach-messages">
+      <div class="coach-msg coach-msg-system">
+        👋 I'm your ADHD coach! Click a quick action above or type a question about this step.
+      </div>
+    </div>
+    <div class="coach-input-row">
+      <textarea id="coach-input" placeholder="I'm stuck on... or ask me anything..." rows="2"></textarea>
+      <button class="coach-send-btn" id="coach-send-btn">➤</button>
+    </div>
+  </div>
+
   <!-- ===== PARTICLE CONTAINER ===== -->
   <div class="particles" id="particles"></div>
 
@@ -110,6 +153,16 @@
     <p>Built for neurodivergent learners, by a neurodivergent learner · IncludAI 2026</p>
     <p>All data stays in your browser. Nothing is sent anywhere except your task text → OpenAI API.</p>
   </footer>
+
+  <!-- ===== PET SANCTUARY ===== -->
+  <div class="pet-sanctuary" id="pet-sanctuary">
+    <div class="pet-speech-bubble" id="pet-speech"></div>
+    <div class="pet-stage-dots" id="pet-dots"></div>
+    <div class="pet-avatar-wrap" id="pet-avatar-wrap">
+      <span class="pet-emoji" id="pet-emoji"></span>
+    </div>
+    <div class="pet-name-tag" id="pet-name-tag"></div>
+  </div>
 
   <script src="script.js"></script>
 </body>

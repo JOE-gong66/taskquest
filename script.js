@@ -7,6 +7,55 @@
 // Local dev (python server.py): key entered in browser, sent to local proxy.
 const IS_PRODUCTION = location.protocol === 'https:' && !location.hostname.includes('localhost');
 
+// ---- PET DATA ----
+const PET_TYPES = {
+  dragon: {
+    label: '龙系',
+    stages: [
+      { emoji: '🐣', name: '蛋蛋', minLevel: 1 },
+      { emoji: '🐥', name: '小叽', minLevel: 4 },
+      { emoji: '🐉', name: '喷喷龙', minLevel: 8 },
+    ],
+  },
+  cat: {
+    label: '猫系',
+    stages: [
+      { emoji: '🐱', name: '奶猫', minLevel: 1 },
+      { emoji: '🦊', name: '小狐', minLevel: 4 },
+      { emoji: '🦁', name: '大狮狮', minLevel: 8 },
+    ],
+  },
+  plant: {
+    label: '植物系',
+    stages: [
+      { emoji: '🌱', name: '豆豆', minLevel: 1 },
+      { emoji: '🌸', name: '小花朵', minLevel: 4 },
+      { emoji: '🌳', name: '大树树', minLevel: 8 },
+    ],
+  },
+  ghost: {
+    label: '魔法系',
+    stages: [
+      { emoji: '👻', name: '小幽灵', minLevel: 1 },
+      { emoji: '⭐', name: '小星星', minLevel: 4 },
+      { emoji: '🌈', name: '彩虹宝', minLevel: 8 },
+    ],
+  },
+};
+
+const PET_QUOTES = [
+  'Starting is the hardest part — and you did it! 💪',
+  'ADHD brain = creative superpower! 🧠✨',
+  'Take a breath. You\'ve got this. 🌬️',
+  'One tiny step at a time, friend. 👣',
+  'You\'re not lazy — you just need a different approach. 💡',
+  'Don\'t forget to drink water! 💧',
+  'Mistakes are just data. No shame here. 📊',
+  'Look at you go! That was awesome. ⚔️',
+  'Even 1% progress is still progress! 🌱',
+  'You showed up today. I\'m proud of you. 🥹',
+];
+
 // ---- STATE (persisted to localStorage) ----
 const DEFAULT_STATE = {
   totalXP: 0,
@@ -20,6 +69,7 @@ const DEFAULT_STATE = {
   apiKey: '',           // user's LLM API key
   provider: 'deepseek',  // 'deepseek' or 'openai'
   soundLevel: 'medium',  // 'low' | 'medium' | 'high'
+  pet: null,              // { type: 'dragon'|'cat'|'plant'|'ghost', name: string }
 };
 
 let state = loadState();
@@ -40,11 +90,255 @@ const $dailyGrid    = document.getElementById('daily-grid');
 const $toast        = document.getElementById('toast');
 const $toastMsg     = document.getElementById('toast-msg');
 const $particles    = document.getElementById('particles');
+const $petModal     = document.getElementById('pet-modal');
+const $petChoices   = document.getElementById('pet-choices');
+const $petNameInput = document.getElementById('pet-name-input');
+const $petConfirm   = document.getElementById('pet-confirm-btn');
+const $petSanctuary = document.getElementById('pet-sanctuary');
+const $petEmoji     = document.getElementById('pet-emoji');
+const $petNameTag   = document.getElementById('pet-name-tag');
+const $petDots      = document.getElementById('pet-dots');
+const $petSpeech    = document.getElementById('pet-speech');
+const $petAvatar    = document.getElementById('pet-avatar-wrap');
 const $xpBar        = document.getElementById('xp-bar');
 const $xpCurrent    = document.getElementById('xp-current');
 const $levelNum     = document.getElementById('level-num');
 const $coinsNum     = document.getElementById('coins-num');
 const $streakNum    = document.getElementById('streak-num');
+
+// ---- PET LOGIC ----
+let selectedPetType = null;   // temp: what the user picked in the modal
+let petIdleTimer = null;
+let petSpeechTimer = null;
+
+function getCurrentPetStage() {
+  if (!state.pet) return null;
+  const petDef = PET_TYPES[state.pet.type];
+  if (!petDef) return null;
+  const lv = getLevel();
+  let stageIdx = 0;
+  for (let i = petDef.stages.length - 1; i >= 0; i--) {
+    if (lv >= petDef.stages[i].minLevel) { stageIdx = i; break; }
+  }
+  return { ...petDef.stages[stageIdx], index: stageIdx, totalStages: petDef.stages.length };
+}
+
+function renderPetSanctuary() {
+  const stage = getCurrentPetStage();
+  if (!stage) { $petSanctuary.style.display = 'none'; return; }
+  $petSanctuary.style.display = '';
+  $petEmoji.textContent = state.pet._evolving ? $petEmoji.textContent : stage.emoji;
+  $petNameTag.textContent = state.pet.name;
+
+  // Stage dots
+  $petDots.innerHTML = '';
+  for (let i = 0; i < stage.totalStages; i++) {
+    const dot = document.createElement('span');
+    dot.className = 'pet-dot' + (i <= stage.index ? ' filled' : '');
+    $petDots.appendChild(dot);
+  }
+}
+
+function renderPetChoices() {
+  $petChoices.innerHTML = Object.entries(PET_TYPES).map(([key, def]) => {
+    const s0 = def.stages[0];
+    return `
+      <div class="pet-choice" data-type="${key}" onclick="selectPetOption('${key}')">
+        <span class="pet-choice-emoji">${s0.emoji}</span>
+        <span class="pet-choice-label">${s0.name}</span>
+        <span class="pet-choice-type">${def.label}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+function selectPetOption(type) {
+  selectedPetType = type;
+  document.querySelectorAll('.pet-choice').forEach(el => el.classList.remove('selected'));
+  const card = document.querySelector(`.pet-choice[data-type="${type}"]`);
+  if (card) card.classList.add('selected');
+  updatePetConfirmBtn();
+}
+
+function updatePetConfirmBtn() {
+  const name = $petNameInput.value.trim();
+  $petConfirm.disabled = !(selectedPetType && name.length > 0);
+}
+
+function confirmPet() {
+  const name = $petNameInput.value.trim();
+  if (!selectedPetType || !name) return;
+
+  state.pet = { type: selectedPetType, name: name };
+  saveState();
+
+  // Hide modal
+  $petModal.style.display = 'none';
+
+  // Show sanctuary with a little bounce-in
+  renderPetSanctuary();
+  startPetIdleCycle();
+
+  // Welcome message
+  const stage = getCurrentPetStage();
+  setTimeout(() => showPetSpeech(`Hi! I'm ${name}! Let's do this together! ✨`), 400);
+}
+
+function showPetSpeech(text) {
+  if (petSpeechTimer) clearTimeout(petSpeechTimer);
+  $petSpeech.textContent = text;
+  $petSpeech.style.display = '';
+  $petSpeech.style.animation = 'none';
+  $petSpeech.offsetHeight;
+  $petSpeech.style.animation = 'bubbleUp 0.3s ease';
+  petSpeechTimer = setTimeout(() => { $petSpeech.style.display = 'none'; }, 3000);
+}
+
+function playPetAnimation(kind) {
+  const emoji = $petEmoji;
+  // Remove all animation classes
+  emoji.classList.remove('pet-sway', 'pet-bounce', 'pet-blink', 'pet-happy', 'pet-head-tilt');
+
+  switch (kind) {
+    case 'sway':
+      emoji.classList.add('pet-sway');
+      break;
+    case 'bounce':
+      emoji.classList.add('pet-bounce');
+      // Restart sway after bounce
+      setTimeout(() => { emoji.classList.remove('pet-bounce'); emoji.classList.add('pet-sway'); }, 500);
+      break;
+    case 'blink':
+      emoji.classList.add('pet-blink');
+      setTimeout(() => { emoji.classList.remove('pet-blink'); emoji.classList.add('pet-sway'); }, 300);
+      break;
+    case 'happy':
+      emoji.classList.add('pet-happy');
+      spawnPetHearts(5);
+      setTimeout(() => { emoji.classList.remove('pet-happy'); emoji.classList.add('pet-sway'); }, 600);
+      break;
+    case 'headTilt':
+      emoji.classList.add('pet-head-tilt');
+      setTimeout(() => { emoji.classList.remove('pet-head-tilt'); emoji.classList.add('pet-sway'); }, 500);
+      break;
+    case 'evolve':
+      $petAvatar.classList.add('pet-evolving');
+      setTimeout(() => { $petAvatar.classList.remove('pet-evolving'); emoji.classList.add('pet-sway'); }, 1800);
+      break;
+  }
+}
+
+function spawnPetHearts(count) {
+  const wrap = $petAvatar;
+  const rect = wrap.getBoundingClientRect();
+  const hearts = ['💕', '💖', '💗', '✨', '💝'];
+  for (let i = 0; i < count; i++) {
+    const el = document.createElement('span');
+    el.className = 'pet-heart';
+    el.textContent = hearts[Math.floor(Math.random() * hearts.length)];
+    el.style.left = (Math.random() * 40 + 5) + 'px';
+    el.style.top = (Math.random() * 10) + 'px';
+    el.style.animationDelay = (i * 0.1) + 's';
+    el.style.animationDuration = (1.2 + Math.random() * 0.8) + 's';
+    wrap.appendChild(el);
+    el.addEventListener('animationend', () => el.remove());
+  }
+}
+
+function showEvolutionOverlay(oldStage, newStage) {
+  // Fullscreen celebration
+  const overlay = document.createElement('div');
+  overlay.className = 'evolution-overlay';
+  overlay.innerHTML = `
+    <div class="evolution-emoji">${newStage.emoji}</div>
+    <div class="evolution-text">${oldStage.name} evolved into ${newStage.name}!</div>
+    <div class="evolution-sub">Level ${getLevel()} reached! 🌟</div>
+  `;
+  document.body.appendChild(overlay);
+
+  // Sparkles
+  const sparkles = document.createElement('div');
+  sparkles.className = 'evolution-sparkles';
+  for (let i = 0; i < 30; i++) {
+    const s = document.createElement('span');
+    s.className = 'evo-sparkle';
+    s.textContent = ['✨','🌟','💫','⭐','🎉'][Math.floor(Math.random() * 5)];
+    s.style.left = Math.random() * 100 + '%';
+    s.style.top = Math.random() * 100 + '%';
+    s.style.setProperty('--sdx', (Math.random() * 200 - 100) + 'px');
+    s.style.setProperty('--sdy', (Math.random() * -150 - 30) + 'px');
+    s.style.animationDelay = Math.random() * 0.5 + 's';
+    sparkles.appendChild(s);
+  }
+  document.body.appendChild(sparkles);
+
+  // Play evolution fanfare
+  playSound('questComplete');
+
+  // Remove after animation
+  setTimeout(() => {
+    overlay.remove();
+    sparkles.remove();
+    delete state.pet._evolving;
+    renderPetSanctuary();
+    startPetIdleCycle();
+  }, 2500);
+
+  // Change emoji after spin
+  setTimeout(() => {
+    $petEmoji.textContent = newStage.emoji;
+  }, 900);
+}
+
+function checkPetEvolution(oldLevel, newLevel) {
+  if (!state.pet) return false;
+  const petDef = PET_TYPES[state.pet.type];
+  if (!petDef) return false;
+
+  const oldStage = getStageForLevel(petDef, oldLevel);
+  const newStage = getStageForLevel(petDef, newLevel);
+
+  if (newStage.index > oldStage.index) {
+    // Evolution!
+    state.pet._evolving = true;
+    playPetAnimation('evolve');
+    showPetSpeech('I\'m... evolving?! 😮');
+    setTimeout(() => showEvolutionOverlay(oldStage, newStage), 600);
+    return true;
+  }
+  return false;
+}
+
+function getStageForLevel(petDef, level) {
+  let stageIdx = 0;
+  for (let i = petDef.stages.length - 1; i >= 0; i--) {
+    if (level >= petDef.stages[i].minLevel) { stageIdx = i; break; }
+  }
+  return { ...petDef.stages[stageIdx], index: stageIdx, totalStages: petDef.stages.length };
+}
+
+function startPetIdleCycle() {
+  if (petIdleTimer) clearInterval(petIdleTimer);
+  if (!state.pet || state.pet._evolving) return;
+
+  // Random idle animation every 2-5 seconds
+  const tick = () => {
+    if (!state.pet || state.pet._evolving) return;
+    const r = Math.random();
+    if (r < 0.5) playPetAnimation('sway');       // 50% — already swaying, just ensure
+    else if (r < 0.7) playPetAnimation('bounce'); // 20%
+    else playPetAnimation('blink');               // 30%
+    petIdleTimer = setTimeout(tick, 2500 + Math.random() * 4000);
+  };
+  petIdleTimer = setTimeout(tick, 2000);
+}
+
+function handlePetClick() {
+  if (!state.pet || state.pet._evolving) return;
+  const quote = PET_QUOTES[Math.floor(Math.random() * PET_QUOTES.length)];
+  showPetSpeech(quote);
+  playPetAnimation('bounce');
+}
 
 // ---- INIT ----
 function init() {
@@ -77,6 +371,30 @@ function init() {
   if (Object.keys(state.dailyQuests).length === 0) {
     generateDailyQuests();
   }
+
+  // --- Pet init ---
+  if (state.pet) {
+    // Already have a pet — show sanctuary
+    renderPetSanctuary();
+    startPetIdleCycle();
+  } else {
+    // First visit — show selection modal after a short warm delay
+    $petSanctuary.style.display = 'none';
+    setTimeout(() => {
+      $petModal.style.display = '';
+      renderPetChoices();
+    }, 800);
+  }
+
+  // Pet modal events
+  $petNameInput.addEventListener('input', updatePetConfirmBtn);
+  $petConfirm.addEventListener('click', confirmPet);
+  $petNameInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') confirmPet();
+  });
+
+  // Pet click
+  $petAvatar.addEventListener('click', handlePetClick);
 }
 
 // ---- STATE PERSISTENCE ----
@@ -272,6 +590,7 @@ function burstParticles(x, y, count = 10, emoji = '✨') {
 
 // ---- REWARD (XP + COINS + PARTICLES + TOAST) ----
 function grantReward(event, xp, coins, message) {
+  const oldLevel = getLevel();
   const mult = 1 + (state.streak * 0.15);
   const bonusXP = Math.round(xp * mult);
   const bonusCoins = Math.round(coins * mult);
@@ -281,6 +600,12 @@ function grantReward(event, xp, coins, message) {
 
   showToast(`${message} +${bonusXP} XP +${bonusCoins} 🪙`);
   updateStatsBar();
+
+  // Check pet evolution
+  if (state.pet) {
+    const newLevel = getLevel();
+    checkPetEvolution(oldLevel, newLevel);
+  }
 
   // Particles at click position
   if (event) {
@@ -318,6 +643,8 @@ function completeStep(stepId, event) {
     state.completedStepIds = state.completedStepIds.filter(id => id !== stepId);
     if (card) card.classList.remove('completed', 'card-pop');
     playSound('undo');
+    playPetAnimation('headTilt');
+    showPetSpeech('No worries! Try again 💪');
     showToast('↩️ Undone — rewards reversed.');
     updateStatsBar();
     renderDailyQuests();
@@ -335,6 +662,7 @@ function completeStep(stepId, event) {
   // Reward + sound
   grantReward(event, 10, 5, 'Step complete!');
   playSound('complete');
+  playPetAnimation('happy');
 
   // Check if all steps done
   if (state.activeQuest) {
@@ -389,6 +717,10 @@ function renderQuestBoard() {
         <div class="step-content">
           <div class="step-title">${escapeHtml(s.title)}</div>
           <div class="step-hint">💡 ${escapeHtml(s.hint)}</div>
+          <div class="step-actions">
+            <button class="step-action-btn" onclick="event.stopPropagation();subdivideStep('${s.id}')" title="Break this down into even smaller steps">🔍 Too big</button>
+            <button class="step-action-btn" onclick="event.stopPropagation();openCoachPanel('${s.id}')" title="Chat with AI about this step">💬 Coach</button>
+          </div>
         </div>
         <div class="step-meta">
           <span class="step-time">⏱ ${s.minutes} min</span>
@@ -397,6 +729,183 @@ function renderQuestBoard() {
       </div>
     `;
   }).join('');
+}
+
+// ---- AI COACH PANEL ----
+let coachStepId = null;       // which step the panel is open for
+let coachMessages = [];       // [{ role, content }] — ephemeral, not persisted
+
+const COACH_QUICK_ACTIONS = {
+  brainstorm: 'Help me brainstorm 3 quick ideas related to this step. Keep each idea very short.',
+  explain:    'Explain this step to me in a completely different way. Maybe with an analogy or a metaphor.',
+  starter:    'Write me ONE tiny starter sentence or phrase I can copy-paste to begin this step right now.',
+  guide:      'Ask me one guiding question that helps me figure out what\'s blocking me on this step.',
+};
+
+const $coachOverlay  = document.getElementById('coach-overlay');
+const $coachPanel    = document.getElementById('coach-panel');
+const $coachContext  = document.getElementById('coach-step-context');
+const $coachMessages = document.getElementById('coach-messages');
+const $coachInput    = document.getElementById('coach-input');
+const $coachSendBtn  = document.getElementById('coach-send-btn');
+const $coachCloseBtn = document.getElementById('coach-close-btn');
+const $coachQuickBtns = document.querySelectorAll('.coach-quick-btn');
+
+function openCoachPanel(stepId) {
+  if (!state.activeQuest) return;
+  const step = state.activeQuest.steps.find(s => s.id === stepId);
+  if (!step) return;
+
+  coachStepId = stepId;
+  coachMessages = [];
+  $coachContext.textContent = `Step: "${step.title}"`;
+  $coachMessages.innerHTML = `
+    <div class="coach-msg coach-msg-system">
+      👋 I'm your ADHD coach! This step: <strong>${escapeHtml(step.title)}</strong>.<br>
+      Click a quick action or type anything you're stuck on.
+    </div>
+  `;
+  $coachInput.value = '';
+  $coachOverlay.style.display = '';
+  $coachPanel.style.display = '';
+  $coachInput.focus();
+}
+
+function closeCoachPanel() {
+  $coachOverlay.style.display = 'none';
+  $coachPanel.style.display = 'none';
+  coachStepId = null;
+  coachMessages = [];
+}
+
+function appendCoachMessage(role, content) {
+  const cls = role === 'user' ? 'coach-msg-user' : 'coach-msg-assistant';
+  const div = document.createElement('div');
+  div.className = `coach-msg ${cls}`;
+  div.textContent = content;
+  $coachMessages.appendChild(div);
+  $coachMessages.scrollTop = $coachMessages.scrollHeight;
+}
+
+function showCoachTyping() {
+  const div = document.createElement('div');
+  div.className = 'coach-typing';
+  div.id = 'coach-typing';
+  div.innerHTML = '<span></span><span></span><span></span>';
+  $coachMessages.appendChild(div);
+  $coachMessages.scrollTop = $coachMessages.scrollHeight;
+}
+
+function hideCoachTyping() {
+  const el = document.getElementById('coach-typing');
+  if (el) el.remove();
+}
+
+async function sendCoachMessage(text) {
+  if (!coachStepId || !state.activeQuest) return;
+  const step = state.activeQuest.steps.find(s => s.id === coachStepId);
+  if (!step) return;
+
+  const trimmed = text.trim();
+  if (!trimmed) return;
+
+  // Disable input while waiting
+  $coachInput.disabled = true;
+  $coachSendBtn.disabled = true;
+
+  appendCoachMessage('user', trimmed);
+  coachMessages.push({ role: 'user', content: trimmed });
+  showCoachTyping();
+
+  try {
+    const payload = IS_PRODUCTION
+      ? { mode: 'coach', step_title: step.title, messages: coachMessages }
+      : { mode: 'coach', step_title: step.title, messages: coachMessages, api_key: state.apiKey || $apiKeyInput.value.trim(), provider: state.provider };
+
+    const res = await fetch('/api/questify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    hideCoachTyping();
+
+    if (!res.ok || data.error) {
+      appendCoachMessage('assistant', '⚠️ ' + (data.error || 'Something went wrong. Try again?'));
+    } else {
+      const reply = data.reply || 'Hmm, I didn\'t quite catch that. Can you say it differently?';
+      appendCoachMessage('assistant', reply);
+      coachMessages.push({ role: 'assistant', content: reply });
+    }
+  } catch (err) {
+    hideCoachTyping();
+    appendCoachMessage('assistant', '⚠️ Connection issue. Check your internet and try again.');
+  }
+
+  $coachInput.disabled = false;
+  $coachSendBtn.disabled = false;
+  $coachInput.focus();
+  $coachInput.value = '';
+}
+
+function handleCoachQuickAction(action) {
+  const prompt = COACH_QUICK_ACTIONS[action];
+  if (!prompt) return;
+  sendCoachMessage(prompt);
+}
+
+// ---- SUBDIVIDE: break one step into even smaller steps ----
+async function subdivideStep(stepId) {
+  if (!state.activeQuest) return;
+  const step = state.activeQuest.steps.find(s => s.id === stepId);
+  if (!step) return;
+
+  // Find and disable the button
+  const card = document.querySelector(`[data-step-id="${stepId}"]`);
+  const btn = card ? card.querySelector('.step-action-btn') : null;
+  if (btn) { btn.disabled = true; btn.textContent = '🔍 Thinking...'; }
+
+  try {
+    const payload = IS_PRODUCTION
+      ? { mode: 'subdivide', task: step.title }
+      : { mode: 'subdivide', task: step.title, api_key: state.apiKey || $apiKeyInput.value.trim(), provider: state.provider };
+
+    const res = await fetch('/api/questify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+
+    if (!res.ok || data.error) {
+      showToast('❌ ' + (data.error || 'Failed to break down step.'));
+      if (btn) { btn.disabled = false; btn.textContent = '🔍 Too big'; }
+      return;
+    }
+
+    // Replace this step with the returned sub-steps
+    const subSteps = data.steps.map((s, i) => ({
+      id: `step_${Date.now()}_${i}`,
+      title: s.title || `Sub-step ${i + 1}`,
+      hint: s.hint || 'Tiny steps win.',
+      minutes: Math.max(1, Math.min(60, parseInt(s.minutes) || 5)),
+    }));
+
+    const idx = state.activeQuest.steps.findIndex(s => s.id === stepId);
+    state.activeQuest.steps.splice(idx, 1, ...subSteps);
+
+    // Remove completed entry for the old step if any
+    state.completedStepIds = state.completedStepIds.filter(id => id !== stepId);
+
+    saveState();
+    renderQuestBoard();
+    showToast(`🔍 Broken into ${subSteps.length} tinier steps!`);
+    playPetAnimation('bounce');
+    showPetSpeech('Smaller steps = easier wins! 🌟');
+  } catch (err) {
+    showToast('❌ Connection error. Try again.');
+    if (btn) { btn.disabled = false; btn.textContent = '🔍 Too big'; }
+  }
 }
 
 // ---- AI: TASK BREAKDOWN (via proxy — no CORS) ----
@@ -651,6 +1160,25 @@ $demoBtn.addEventListener('click', () => {
   state.apiKey = '';
   saveState();
   handleQuestify();
+});
+
+// --- Coach panel events ---
+$coachCloseBtn.addEventListener('click', closeCoachPanel);
+$coachOverlay.addEventListener('click', closeCoachPanel);
+$coachSendBtn.addEventListener('click', () => {
+  sendCoachMessage($coachInput.value);
+});
+$coachInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendCoachMessage($coachInput.value);
+  }
+});
+document.querySelectorAll('.coach-quick-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const action = this.dataset.action;
+    if (action) handleCoachQuickAction(action);
+  });
 });
 
 // Save API key on blur
