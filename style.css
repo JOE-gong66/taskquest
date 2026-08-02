@@ -779,6 +779,10 @@ footer p { margin-bottom: 2px; }
   font-size: 2.2rem;
   transition: transform 0.2s ease;
   line-height: 1;
+  font-family: 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif;
+  color: #2d2318;
+  text-align: center;
+  display: block;
 }
 
 .pet-name-tag {
@@ -790,6 +794,28 @@ footer p { margin-bottom: 2px; }
   border-radius: 10px;
   border: 1px solid var(--border);
   white-space: nowrap;
+}
+
+.pet-add-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px dashed var(--border);
+  background: var(--surface);
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
+  color: var(--text-muted);
+}
+
+.pet-add-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-light);
+  transform: scale(1.1);
 }
 
 /* ===== PET ANIMATIONS ===== */

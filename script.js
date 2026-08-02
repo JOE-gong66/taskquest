@@ -126,17 +126,24 @@ function getCurrentPetStage() {
 
 function renderPetSanctuary() {
   const stage = getCurrentPetStage();
-  if (!stage) { $petSanctuary.style.display = 'none'; return; }
+  if (!stage) { if ($petSanctuary) $petSanctuary.style.display = 'none'; return; }
+  if (!$petSanctuary || !$petEmoji) return;
   $petSanctuary.style.display = '';
-  $petEmoji.textContent = state.pet._evolving ? $petEmoji.textContent : stage.emoji;
-  $petNameTag.textContent = state.pet.name;
+
+  // Force emoji rendering: use innerHTML for better browser compat
+  if (!state.pet._evolving) {
+    $petEmoji.innerHTML = stage.emoji;
+  }
+  if ($petNameTag) $petNameTag.textContent = state.pet.name;
 
   // Stage dots
-  $petDots.innerHTML = '';
-  for (let i = 0; i < stage.totalStages; i++) {
-    const dot = document.createElement('span');
-    dot.className = 'pet-dot' + (i <= stage.index ? ' filled' : '');
-    $petDots.appendChild(dot);
+  if ($petDots) {
+    $petDots.innerHTML = '';
+    for (let i = 0; i < stage.totalStages; i++) {
+      const dot = document.createElement('span');
+      dot.className = 'pet-dot' + (i <= stage.index ? ' filled' : '');
+      $petDots.appendChild(dot);
+    }
   }
 }
 
@@ -158,7 +165,31 @@ function selectPetOption(type) {
   document.querySelectorAll('.pet-choice').forEach(el => el.classList.remove('selected'));
   const card = document.querySelector(`.pet-choice[data-type="${type}"]`);
   if (card) card.classList.add('selected');
+
+  // Auto-fill default name from the pet's stage-0 name
+  const petDef = PET_TYPES[type];
+  if (petDef && !$petNameInput.value.trim()) {
+    $petNameInput.value = petDef.stages[0].name;
+  }
   updatePetConfirmBtn();
+}
+
+function skipPet() {
+  $petModal.style.display = 'none';
+  $petSanctuary.style.display = 'none';
+  // Show a small + button so user can get a pet later
+  const $addBtn = document.getElementById('pet-add-btn');
+  if ($addBtn) $addBtn.style.display = '';
+}
+
+function reopenPetModal() {
+  $petModal.style.display = '';
+  renderPetChoices();
+  selectedPetType = null;
+  $petNameInput.value = '';
+  updatePetConfirmBtn();
+  const $addBtn = document.getElementById('pet-add-btn');
+  if ($addBtn) $addBtn.style.display = 'none';
 }
 
 function updatePetConfirmBtn() {
@@ -393,6 +424,10 @@ function init() {
   $petNameInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') confirmPet();
   });
+  const $petSkipBtn = document.getElementById('pet-skip-btn');
+  if ($petSkipBtn) $petSkipBtn.addEventListener('click', skipPet);
+  const $petAddBtn = document.getElementById('pet-add-btn');
+  if ($petAddBtn) $petAddBtn.addEventListener('click', reopenPetModal);
 
   // Pet click
   $petAvatar.addEventListener('click', handlePetClick);
@@ -1091,6 +1126,7 @@ async function handleQuestify() {
     state.completedStepIds = [];
     state.questCompleted = false;
     state.coachChats = {}; // fresh quest, fresh chats
+    lastSubdivide = null;  // fresh quest, clear undo
 
     // Reset input placeholder
     $taskInput.placeholder = 'e.g. "Write my history essay" or "Clean my room" or "Study for calc midterm"';
