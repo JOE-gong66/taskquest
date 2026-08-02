@@ -974,10 +974,74 @@ footer p { margin-bottom: 2px; }
 }
 
 .step-action-btn:hover {
+  transform: translateY(-1px);
+}
+
+/* Subdivide: subtle secondary action */
+.step-action-subdivide {
+  border-style: dashed;
+  color: var(--text-muted);
+}
+
+.step-action-subdivide:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+/* Coach: primary secondary action — more prominent */
+.step-action-coach {
   border-color: var(--info);
   color: var(--info);
   background: var(--info-light);
-  transform: translateY(-1px);
+  font-weight: 600;
+}
+
+.step-action-coach:hover {
+  background: var(--info);
+  color: #fff;
+}
+
+/* Undo button */
+.step-action-undo {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: #fff;
+  font-weight: 600;
+}
+
+.step-action-undo:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
+/* Subdivide undo bar */
+.subdivide-undo-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border: 1px dashed var(--gold);
+  border-radius: var(--radius-sm);
+  background: var(--gold-light);
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition);
+  animation: slideUp 0.3s ease;
+}
+
+.subdivide-undo-bar:hover {
+  border-color: var(--gold);
+  background: #fff4e0;
+}
+
+.subdivide-undo-bar span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  margin-right: 12px;
 }
 
 /* ===== AI COACH PANEL ===== */

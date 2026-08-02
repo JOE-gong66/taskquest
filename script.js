@@ -738,8 +738,8 @@ function renderQuestBoard() {
           <div class="step-title">${escapeHtml(s.title)}</div>
           <div class="step-hint">💡 ${escapeHtml(s.hint)}</div>
           <div class="step-actions">
-            <button class="step-action-btn" onclick="event.stopPropagation();subdivideStep('${s.id}')" title="Break this down into even smaller steps">🔍 Too big</button>
-            <button class="step-action-btn" onclick="event.stopPropagation();openCoachPanel('${s.id}')" title="Chat with AI about this step">💬 Coach</button>
+            <button class="step-action-btn step-action-subdivide" onclick="event.stopPropagation();subdivideStep('${s.id}')" title="Break this down into even smaller steps">🔍 Too big</button>
+            <button class="step-action-btn step-action-coach" onclick="event.stopPropagation();openCoachPanel('${s.id}')" title="Chat with AI about this step">💬 Coach</button>
           </div>
         </div>
         <div class="step-meta">
@@ -749,10 +749,22 @@ function renderQuestBoard() {
       </div>
     `;
   }).join('');
+
+  // Subdivide undo bar
+  if (lastSubdivide) {
+    const orig = lastSubdivide.originalStep;
+    $stepsGrid.innerHTML += `
+      <div class="subdivide-undo-bar" onclick="undoSubdivide()">
+        <span>📦 "${escapeHtml(orig.title)}" &rarr; ${lastSubdivide.newCount} smaller steps</span>
+        <button class="step-action-btn step-action-undo">↩️ Undo split</button>
+      </div>
+    `;
+  }
 }
 
 // ---- AI COACH PANEL ----
 let coachStepId = null;       // which step the panel is open for
+let lastSubdivide = null;     // { stepIndex, originalStep, newCount, timestamp } — for undo
 
 const COACH_QUICK_ACTIONS = {
   brainstorm: 'Help me brainstorm 3 quick ideas related to this step. Keep each idea very short.',
@@ -950,6 +962,11 @@ async function subdivideStep(stepId) {
     }));
 
     const idx = state.activeQuest.steps.findIndex(s => s.id === stepId);
+    const originalStep = { ...state.activeQuest.steps[idx] };
+
+    // Store undo info
+    lastSubdivide = { stepIndex: idx, originalStep, newCount: subSteps.length, timestamp: Date.now() };
+
     state.activeQuest.steps.splice(idx, 1, ...subSteps);
 
     // Remove completed entry for the old step if any
@@ -965,6 +982,27 @@ async function subdivideStep(stepId) {
     showToast('❌ Connection error. Try again.');
     if (btn) { btn.disabled = false; btn.textContent = '🔍 Too big'; }
   }
+}
+
+function undoSubdivide() {
+  if (!lastSubdivide || !state.activeQuest) return;
+  const { stepIndex, originalStep, newCount } = lastSubdivide;
+
+  // Remove the sub-steps we inserted
+  state.activeQuest.steps.splice(stepIndex, newCount, originalStep);
+
+  // Remove completed entries for the sub-steps
+  state.completedStepIds = state.completedStepIds.filter(id =>
+    state.activeQuest.steps.some(s => s.id === id)
+  );
+
+  lastSubdivide = null;
+  cleanOrphanedCoachChats();
+  saveState();
+  renderQuestBoard();
+  showToast('↩️ Split undone — original step restored.');
+  playPetAnimation('headTilt');
+  showPetSpeech('Oops! Back to the original step.');
 }
 
 // ---- AI: TASK BREAKDOWN (via proxy — no CORS) ----
