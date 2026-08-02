@@ -428,7 +428,8 @@ function init() {
 
   // --- Pet init ---
   if (state.pet) {
-    // Already have a pet — show sanctuary
+    // Already have a pet — show sanctuary, make sure modal stays hidden
+    $petModal.style.display = 'none';
     renderPetSanctuary();
     startPetIdleCycle();
   } else {
