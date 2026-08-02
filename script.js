@@ -10,35 +10,35 @@ const IS_PRODUCTION = location.protocol === 'https:' && !location.hostname.inclu
 // ---- PET DATA ----
 const PET_TYPES = {
   dragon: {
-    label: '龙系',
+    label: 'Dragon',
     stages: [
-      { emoji: '🐣', name: '蛋蛋', minLevel: 1 },
-      { emoji: '🐥', name: '小叽', minLevel: 4 },
-      { emoji: '🐉', name: '喷喷龙', minLevel: 8 },
+      { emoji: '🐣', name: 'Egglet', minLevel: 1 },
+      { emoji: '🐥', name: 'Chirp', minLevel: 4 },
+      { emoji: '🐉', name: 'Blaze', minLevel: 8 },
     ],
   },
   cat: {
-    label: '猫系',
+    label: 'Cat',
     stages: [
-      { emoji: '🐱', name: '奶猫', minLevel: 1 },
-      { emoji: '🦊', name: '小狐', minLevel: 4 },
-      { emoji: '🦁', name: '大狮狮', minLevel: 8 },
+      { emoji: '🐱', name: 'Kitten', minLevel: 1 },
+      { emoji: '🐈', name: 'Whiskers', minLevel: 4 },
+      { emoji: '🐯', name: 'Tiger', minLevel: 8 },
     ],
   },
   plant: {
-    label: '植物系',
+    label: 'Plant',
     stages: [
-      { emoji: '🌱', name: '豆豆', minLevel: 1 },
-      { emoji: '🌸', name: '小花朵', minLevel: 4 },
-      { emoji: '🌳', name: '大树树', minLevel: 8 },
+      { emoji: '🌱', name: 'Sprout', minLevel: 1 },
+      { emoji: '🌸', name: 'Bloom', minLevel: 4 },
+      { emoji: '🌳', name: 'Oak', minLevel: 8 },
     ],
   },
   ghost: {
-    label: '魔法系',
+    label: 'Mystic',
     stages: [
-      { emoji: '👻', name: '小幽灵', minLevel: 1 },
-      { emoji: '⭐', name: '小星星', minLevel: 4 },
-      { emoji: '🌈', name: '彩虹宝', minLevel: 8 },
+      { emoji: '👻', name: 'Boo', minLevel: 1 },
+      { emoji: '⭐', name: 'Sparkle', minLevel: 4 },
+      { emoji: '🌈', name: 'Prism', minLevel: 8 },
     ],
   },
 };
@@ -103,6 +103,8 @@ const $petSpeech    = document.getElementById('pet-speech');
 const $petAvatar    = document.getElementById('pet-avatar-wrap');
 const $xpBar        = document.getElementById('xp-bar');
 const $xpCurrent    = document.getElementById('xp-current');
+const $xpToNext     = document.getElementById('xp-to-next');
+const $nextLevelNum = document.getElementById('next-level-num');
 const $levelNum     = document.getElementById('level-num');
 const $coinsNum     = document.getElementById('coins-num');
 const $streakNum    = document.getElementById('streak-num');
@@ -519,6 +521,11 @@ function updateStatsBar() {
   $xpBar.style.width = Math.min(100, Math.max(0, progress)) + '%';
   $coinsNum.textContent = state.coins;
   $streakNum.textContent = state.streak;
+
+  // "X to Lv.N" hint — ADHD users want to know exactly how close they are
+  const xpToNext = Math.max(0, nextLvXP - state.totalXP);
+  $xpToNext.textContent = xpToNext;
+  $nextLevelNum.textContent = lv + 1;
 }
 
 // ---- SOUND (Web Audio API — synthesized, no files needed) ----
@@ -735,6 +742,35 @@ function completeStep(stepId, event) {
 }
 
 // ---- QUEST COMPLETION ----
+// ★ Special celebration when the ENTIRE quest is done — bigger than a normal step.
+function celebrateQuestComplete() {
+  // 1. Rainbow confetti across the whole screen
+  const colors = ['#ff6b6b', '#ffd93d', '#6bcb77', '#4d96ff', '#b983ff', '#ff8fab'];
+  for (let i = 0; i < 40; i++) {
+    const el = document.createElement('span');
+    el.className = 'confetti';
+    el.style.left = (Math.random() * 100) + 'vw';
+    el.style.top = '-5vh';
+    el.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+    el.style.animationDelay = (Math.random() * 0.8) + 's';
+    el.style.animationDuration = (1.8 + Math.random() * 1.5) + 's';
+    el.style.transform = `rotate(${Math.random() * 360}deg)`;
+    document.body.appendChild(el);
+    el.addEventListener('animationend', () => el.remove());
+  }
+
+  // 2. Pet does a triple happy jump + hearts
+  playPetAnimation('happy');
+  spawnPetHearts(10);
+  setTimeout(() => { playPetAnimation('happy'); spawnPetHearts(6); }, 450);
+  setTimeout(() => { playPetAnimation('happy'); spawnPetHearts(4); }, 900);
+
+  // 3. Special speech (longer than a normal nudge)
+  const petName = state.pet ? state.pet.name : 'friend';
+  setTimeout(() => showPetSpeech(`🎉 ${petName}: YOU COMPLETED THE WHOLE QUEST! I'm so proud of you!! Let's start the next one together! ⚔️✨`), 700);
+  setTimeout(() => playSound('questComplete'), 1200);
+}
+
 function completeQuest() {
   const bonusXP = 50;
   if (state.questCompleted) return; // bonus already granted
@@ -750,10 +786,8 @@ function completeQuest() {
   burstParticles(rect.left + rect.width / 2, rect.top, 20, '🎉');
   playSound('questComplete');
 
-  // Pet celebrates
-  playPetAnimation('happy');
-  spawnPetHearts(8);
-  setTimeout(() => showPetSpeech('You did it!! What\'s our next quest? 🗺️'), 800);
+  // ★ Special full-quest celebration ★
+  celebrateQuestComplete();
 
   // Guide user to next quest — highlight input after fanfare settles
   setTimeout(() => {
@@ -1186,8 +1220,8 @@ async function handleQuestify() {
 
 // ---- DAILY QUESTS ----
 const DAILY_QUEST_POOL = [
-  { text: 'Open TaskQuest and complete 1 step', icon: '🎯', xp: 5 },
   { text: 'Write down ONE thing you want to do today', icon: '📝', xp: 5 },
+  { text: 'Complete 1 step from any active quest', icon: '🎯', xp: 5 },
   { text: 'Set a 5-minute timer and start ANY task', icon: '⏱️', xp: 8 },
   { text: 'Text a friend what you\'re working on', icon: '💬', xp: 5 },
   { text: 'Drink a glass of water', icon: '💧', xp: 3 },

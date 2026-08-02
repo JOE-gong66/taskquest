@@ -544,6 +544,22 @@ main {
   100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.3); }
 }
 
+/* Full-screen confetti — used on full-quest completion */
+.confetti {
+  position: fixed;
+  width: 10px;
+  height: 14px;
+  border-radius: 2px;
+  z-index: 999;
+  pointer-events: none;
+  animation: confettiFall 2.5s ease-in forwards;
+}
+
+@keyframes confettiFall {
+  0%   { opacity: 1; transform: translateY(0) rotate(0deg); }
+  100% { opacity: 0; transform: translateY(105vh) rotate(720deg); }
+}
+
 /* ===== LOADING SPINNER ===== */
 .spinner {
   display: inline-block;
