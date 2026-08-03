@@ -162,6 +162,10 @@ exports.handler = async (event) => {
     } else {
       // default: breakdown
       systemPrompt = BREAKDOWN_PROMPT;
+      // Inject user profile for adaptive step sizing (Task C)
+      if (body.profileHint && typeof body.profileHint === 'string' && body.profileHint.trim()) {
+        systemPrompt += '\n\nUSER PROFILE (adapt your breakdown to this learner):\n' + body.profileHint.trim();
+      }
       userMessage = `Break down this task for me: "${task}"`;
     }
     maxTokens = 1000;

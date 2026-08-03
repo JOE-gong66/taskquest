@@ -1416,9 +1416,12 @@ async function fetchTaskBreakdown(task) {
   const apiKey = !IS_PRODUCTION ? (state.apiKey || $apiKeyInput.value.trim()) : null;
   if (!IS_PRODUCTION && !apiKey) throw new Error('no_api_key');
 
+  const profile = buildUserProfile(state.stepEvents);
+  const profileHint = renderProfileHint(profile);
+
   const payload = IS_PRODUCTION
-    ? { task: task }
-    : { task: task, api_key: apiKey, provider: state.provider };
+    ? { task: task, profileHint: profileHint || undefined }
+    : { task: task, profileHint: profileHint || undefined, api_key: apiKey, provider: state.provider };
 
   const response = await fetch('/api/questify', {
     method: 'POST',
@@ -1736,6 +1739,36 @@ function buildUserProfile(stepEvents) {
     .sort((a, b) => b.avgDepth - a.avgDepth);
 
   return { granularityThreshold, splitCeiling, bestVerbs, chainLength, hardCategories, isColdStart: false };
+}
+
+// Render profile as natural-language hint for the AI breakdown prompt.
+// Only positive framing — never mention failure or weakness.
+function renderProfileHint(profile) {
+  if (!profile || profile.isColdStart) return '';
+  const lines = [];
+  // Granularity
+  lines.push(`This student's ideal starting step is about ${profile.granularityThreshold} minutes. Steps over ${profile.splitCeiling} minutes tend to get broken down — please keep early steps at or under ${profile.granularityThreshold} minutes.`);
+  // Best verb types
+  if (profile.bestVerbs.length >= 2) {
+    const best = profile.bestVerbs[0];
+    const worst = profile.bestVerbs[profile.bestVerbs.length - 1];
+    if (best.rate > 0.5) {
+      lines.push(`They start fast on "${best.verb}" actions — lean into concrete, body-first steps.`);
+    }
+    if (worst.rate < 0.5 && worst.verb !== best.verb) {
+      lines.push(`"${worst.verb}" steps benefit from being wrapped in a small physical action first (e.g. "open your notebook" before a thinking step).`);
+    }
+  }
+  // Chain length
+  if (profile.chainLength > 1) {
+    lines.push(`They typically complete ${profile.chainLength} steps in a row. Place ${Math.max(1, profile.chainLength)} short wins before any deeper-thinking step.`);
+  }
+  // Hard categories
+  if (profile.hardCategories.length > 0) {
+    const hardest = profile.hardCategories[0];
+    lines.push(`Tasks similar to "${hardest.category}" respond well to one extra breakdown layer — please add detail for these.`);
+  }
+  return lines.join(' ');
 }
 
 // ---- UTILS ----
