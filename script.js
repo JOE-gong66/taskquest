@@ -288,7 +288,7 @@ function buyAccessory(id) {
   }
 
   if (state.coins < acc.price) {
-    showToast('Not enough coins! Complete more quests to earn more. 🪙');
+    showToast(`That's ${acc.price} coins — you have ${state.coins}. ${acc.price - state.coins} more to go! 🪙`);
     return;
   }
 
@@ -1341,8 +1341,8 @@ async function subdivideStep(stepId) {
     const data = await res.json();
 
     if (!res.ok || data.error) {
-      showToast('❌ ' + (data.error || 'Failed to break down step.'));
-      announce('Failed to split step. Please try again.', 'assertive');
+      showToast('❌ ' + (data.error || "Couldn't break that down. Try again?"));
+      announce("Couldn't split that step. Try again?", 'assertive');
       if (btn) { btn.disabled = false; btn.textContent = '🔍 Too big'; }
       return;
     }
@@ -2013,7 +2013,7 @@ function openProfilePanel() {
     <hr style="border:0;border-top:1px solid var(--border);margin:16px 0;">
 
     <h3 style="font-size:1rem;margin-bottom:8px;"><span aria-hidden="true">⏱</span> Time-to-First-Action</h3>
-    <p class="pet-modal-sub" style="margin-bottom:10px;">How quickly you start after seeing your steps. This is what TaskQuest improves.</p>
+    <p class="pet-modal-sub" style="margin-bottom:10px;">Your own numbers, on your device.</p>
 
     <div class="profile-field" style="display:flex;justify-content:space-around;text-align:center;flex-wrap:wrap;gap:8px;">
       <div>
@@ -2026,7 +2026,10 @@ function openProfilePanel() {
       </div>
       <div>
         <div class="profile-label" style="font-size:0.78rem;">Without TaskQuest</div>
-        <div style="font-size:1.3rem;font-weight:800;color:var(--text-muted);">${formatTTFA(manualMedian)}</div>
+        ${state.manualTTFAs.length === 0
+          ? `<div style="font-size:0.78rem;color:var(--primary);cursor:pointer;text-decoration:underline;" onclick="document.getElementById('pf-manual-ttfa').focus()">Record your own time to compare &rarr;</div>`
+          : `<div style="font-size:1.3rem;font-weight:800;color:var(--text-muted);">${formatTTFA(manualMedian)}</div>`
+        }
       </div>
     </div>
 

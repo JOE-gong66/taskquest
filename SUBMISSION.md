@@ -16,7 +16,7 @@ For K-12 students with ADHD, the hardest part of any assignment isn't understand
 "Write a book report" is not one task to a neurodivergent brain. It's an undifferentiated wall of sub-tasks (find the book, open a doc, read, take notes, outline, write, revise, format...) — all demanding to be held in working memory simultaneously. The brain overloads. The cursor blinks. Nothing happens.
 
 Existing tools fall into two camps:
-- **To-do apps** assume the user can already break down tasks — exactly the skill that's impaired
+- **To-do apps** assume the user can already break down tasks — exactly the skill that executive function makes hardest to summon
 - **AI chatbots** can give advice, but don't close the loop: they don't learn from the user's behavior, and they don't present results in a way that's safe for an overwhelmed brain
 
 TaskQuest bridges this gap: AI breaks the task down, game design makes starting irresistible, and a local-only adaptive profile makes the breakdowns *better every time you use it*.
