@@ -493,9 +493,18 @@ function getXPForCurrentLevel() {
 }
 
 // ---- STREAK ----
+// Local-timezone date key ('YYYY-MM-DD'). toISOString() uses UTC, which rolls
+// the day over at 8am Beijing time — an evening session would land on the
+// wrong day. All streak/daily code must use this.
+function todayKey(d = new Date()) {
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
 function updateStreak() {
-  const today = new Date().toISOString().slice(0, 10);
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const today = todayKey();
+  const yesterday = todayKey(new Date(Date.now() - 86400000));
 
   if (state.lastActiveDate === today) return; // already active today
 
@@ -1319,7 +1328,7 @@ const DAILY_QUEST_POOL = [
 ];
 
 function generateDailyQuests() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayKey();
   if (state.dailyQuests[today]) return; // already generated
 
   // Pick 3 random quests using date as seed (stable for the day)
@@ -1352,7 +1361,7 @@ function hashCode(str) {
 }
 
 function completeDailyQuest(dailyId, event) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayKey();
   const quests = state.dailyQuests[today];
   if (!quests) return;
 
@@ -1380,7 +1389,7 @@ function completeDailyQuest(dailyId, event) {
 }
 
 function renderDailyQuests() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayKey();
 
   // Clean up old daily quests (keep only today + yesterday)
   const keys = Object.keys(state.dailyQuests);
