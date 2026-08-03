@@ -89,6 +89,7 @@ const DEFAULT_STATE = {
   stepEvents: [],          // [{ stepId, taskCategory, minutes, verbType, depth, outcome, shownAt, completedAt, at }]
   profileOverrides: {},    // { granularityThreshold?: number, splitCeiling?: number, bestVerbsEnabled?: bool, chainLengthEnabled?: bool, hardCategoriesEnabled?: bool }
   demoProfileEnabled: false, // demo mode: use synthetic 3-week user profile for stable demo video contrast
+  manualTTFAs: [],           // [{ seconds, date }] — user's self-timed "without TaskQuest" entries
 };
 
 let state = loadState();
@@ -1855,6 +1856,82 @@ function renderProfileHint(profile) {
   return lines.join(' ');
 }
 
+// ---- METRICS (time-to-first-action) ----
+function median(arr) {
+  if (!arr || arr.length === 0) return null;
+  const s = [...arr].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 === 0 ? Math.round((s[mid - 1] + s[mid]) / 2) : s[mid];
+}
+
+function computeMetrics() {
+  const events = state.stepEvents;
+  if (!events || events.length === 0) return { currentTTFA: null, medianTTFA: null, history: [] };
+
+  // Group events into sessions (events whose shownAt are within 30s → same quest)
+  const sorted = [...events].sort((a, b) => a.shownAt - b.shownAt);
+  const sessions = [];
+  let cur = [sorted[0]];
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i].shownAt - cur[cur.length - 1].shownAt < 30000) {
+      cur.push(sorted[i]);
+    } else {
+      sessions.push(cur); cur = [sorted[i]];
+    }
+  }
+  sessions.push(cur);
+
+  // TTFA per session: first completedAt - earliest shownAt
+  const ttfas = sessions.map(session => {
+    const minShown = Math.min(...session.map(e => e.shownAt));
+    const completed = session.filter(e => e.outcome === 'completed' && e.completedAt > 0)
+      .sort((a, b) => a.completedAt - b.completedAt);
+    if (completed.length === 0) return null;
+    return Math.max(0, Math.round((completed[0].completedAt - minShown) / 1000)); // seconds
+  }).filter(t => t !== null);
+
+  return {
+    currentTTFA: ttfas.length > 0 ? ttfas[ttfas.length - 1] : null,
+    medianTTFA: median(ttfas),
+    history: ttfas.slice(-10),
+  };
+}
+
+function formatTTFA(seconds) {
+  if (seconds == null) return '—';
+  if (seconds < 60) return `${seconds}s`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return s > 0 ? `${m}m ${s}s` : `${m}m`;
+}
+
+function recordManualTTFA(seconds) {
+  if (!seconds || seconds <= 0) return;
+  state.manualTTFAs.push({ seconds, date: todayKey() });
+  saveState();
+  openProfilePanel(); // refresh the panel
+  announce(`Manual time recorded: ${formatTTFA(seconds)}.`);
+}
+
+function exportData() {
+  const data = {
+    exportedAt: new Date().toISOString(),
+    stepEvents: state.stepEvents,
+    metrics: computeMetrics(),
+    manualTTFAs: state.manualTTFAs,
+    profile: buildUserProfile(state.stepEvents),
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `taskquest-data-${todayKey()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  announce('Data exported as JSON.');
+  showToast('📦 Data exported!');
+}
+
 // ---- LEARNING PROFILE PANEL ----
 function openProfilePanel() {
   const profile = buildUserProfile(state.stepEvents);
@@ -1873,6 +1950,14 @@ function openProfilePanel() {
 
   const $content = document.getElementById('profile-content');
   if (!$content) return;
+
+  const metrics = computeMetrics();
+  const manualMedian = state.manualTTFAs.length > 0
+    ? median(state.manualTTFAs.map(m => m.seconds))
+    : null;
+  const historyStr = metrics.history.length > 0
+    ? metrics.history.map(t => formatTTFA(t)).join(' &rarr; ')
+    : 'No data yet — complete your first step!';
 
   $content.innerHTML = `
     <div class="profile-field" style="background:var(--info-light);border-color:var(--info);">
@@ -1924,7 +2009,58 @@ function openProfilePanel() {
       </label>
       <p class="profile-hint">${cold ? '(Complete more quests and we will find patterns.)' : 'We will add an extra breakdown layer for these types of tasks.'}</p>
     </div>
+
+    <hr style="border:0;border-top:1px solid var(--border);margin:16px 0;">
+
+    <h3 style="font-size:1rem;margin-bottom:8px;"><span aria-hidden="true">⏱</span> Time-to-First-Action</h3>
+    <p class="pet-modal-sub" style="margin-bottom:10px;">How quickly you start after seeing your steps. This is what TaskQuest improves.</p>
+
+    <div class="profile-field" style="display:flex;justify-content:space-around;text-align:center;flex-wrap:wrap;gap:8px;">
+      <div>
+        <div class="profile-label" style="font-size:0.78rem;">This quest</div>
+        <div style="font-size:1.3rem;font-weight:800;">${formatTTFA(metrics.currentTTFA)}</div>
+      </div>
+      <div>
+        <div class="profile-label" style="font-size:0.78rem;">Your median</div>
+        <div style="font-size:1.3rem;font-weight:800;">${formatTTFA(metrics.medianTTFA)}</div>
+      </div>
+      <div>
+        <div class="profile-label" style="font-size:0.78rem;">Without TaskQuest</div>
+        <div style="font-size:1.3rem;font-weight:800;color:var(--text-muted);">${formatTTFA(manualMedian)}</div>
+      </div>
+    </div>
+
+    <div class="profile-field">
+      <div class="profile-label">Recent (last 10)</div>
+      <div style="font-size:0.82rem;color:var(--text-muted);">${historyStr}</div>
+    </div>
+
+    <div class="profile-field">
+      <label class="profile-label">Record a time without TaskQuest</label>
+      <div class="profile-field-row">
+        <input type="number" id="pf-manual-ttfa" class="profile-input" placeholder="120" min="1" max="3600" aria-label="Seconds to start a task without TaskQuest" style="width:90px;">
+        <span class="profile-unit">seconds</span>
+        <button class="btn-ghost" id="pf-manual-save-btn" style="font-size:0.8rem;padding:6px 12px;">Record</button>
+      </div>
+      <p class="profile-hint">Time how long it takes you to start a task on your own. We will show the comparison above.</p>
+    </div>
+
+    <div class="profile-field" style="text-align:center;">
+      <button class="btn-primary" id="pf-export-btn" style="font-size:0.85rem;padding:8px 20px;"><span aria-hidden="true">📦</span> Export all data (JSON)</button>
+      <p class="profile-hint">Download your step events, metrics, and profile for your own records.</p>
+    </div>
   `;
+
+  // Wire up dynamic buttons
+  const $manualSave = document.getElementById('pf-manual-save-btn');
+  const $exportBtn = document.getElementById('pf-export-btn');
+  if ($manualSave) {
+    $manualSave.addEventListener('click', () => {
+      const val = parseInt(document.getElementById('pf-manual-ttfa')?.value);
+      if (val > 0) recordManualTTFA(val);
+    });
+  }
+  if ($exportBtn) $exportBtn.addEventListener('click', exportData);
 
   document.getElementById('profile-overlay').style.display = '';
   document.getElementById('profile-panel').style.display = '';
