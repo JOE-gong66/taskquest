@@ -953,6 +953,7 @@ function openCoachPanel(stepId) {
 }
 
 function closeCoachPanel() {
+  finishTypewriter(); // complete any in-progress typing; text is already persisted
   $coachOverlay.style.display = 'none';
   $coachPanel.style.display = 'none';
   coachStepId = null;
@@ -966,6 +967,50 @@ function appendCoachMessage(role, content) {
   div.textContent = content;
   $coachMessages.appendChild(div);
   $coachMessages.scrollTop = $coachMessages.scrollHeight;
+}
+
+// ---- Typewriter effect (fake streaming) ----
+// Shows the reply typing out character by character so the wait feels shorter
+// and more alive than a sudden full block. Persisted first, typed second:
+// if the user closes the panel mid-typing, the full reply is already saved.
+let typewriterState = null; // { el, fullText, timer }
+
+function finishTypewriter() {
+  if (!typewriterState) return;
+  clearTimeout(typewriterState.timer);
+  typewriterState.el.textContent = typewriterState.fullText;
+  typewriterState = null;
+}
+
+function appendCoachMessageTyped(content) {
+  const div = document.createElement('div');
+  div.className = 'coach-msg coach-msg-assistant';
+  $coachMessages.appendChild(div);
+  $coachMessages.scrollTop = $coachMessages.scrollHeight;
+
+  // Respect OS "reduce motion" — show it all at once
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    div.textContent = content;
+    $coachMessages.scrollTop = $coachMessages.scrollHeight;
+    return;
+  }
+
+  finishTypewriter(); // complete any in-progress typing first
+
+  let i = 0;
+  const fullText = content;
+  const tick = () => {
+    if (i >= fullText.length) {
+      div.textContent = fullText;
+      typewriterState = null;
+      return;
+    }
+    div.textContent = fullText.slice(0, i + 1) + '▌';
+    $coachMessages.scrollTop = $coachMessages.scrollHeight;
+    i++;
+    typewriterState = { el: div, fullText, timer: setTimeout(tick, 14) };
+  };
+  tick();
 }
 
 function showCoachTyping() {
@@ -989,6 +1034,8 @@ async function sendCoachMessage(text) {
 
   const trimmed = text.trim();
   if (!trimmed) return;
+
+  finishTypewriter(); // finish any in-progress typing before sending a new message
 
   // Disable input while waiting
   $coachInput.disabled = true;
@@ -1018,9 +1065,10 @@ async function sendCoachMessage(text) {
       appendCoachMessage('assistant', '⚠️ ' + (data.error || 'Something went wrong. Try again?'));
     } else {
       const reply = data.reply || 'Hmm, I didn\'t quite catch that. Can you say it differently?';
-      appendCoachMessage('assistant', reply);
+      // Persist FIRST so the reply survives even if the panel is closed mid-typing
       chat.push({ role: 'assistant', content: reply });
       saveState();
+      appendCoachMessageTyped(reply);
     }
   } catch (err) {
     hideCoachTyping();
