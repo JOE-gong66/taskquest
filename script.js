@@ -61,6 +61,7 @@ const DEFAULT_STATE = {
   totalXP: 0,
   coins: 0,
   streak: 0,           // current consecutive-day streak
+  bestStreak: 0,       // all-time best streak (never goes down — ADHD-friendly)
   lastActiveDate: null, // 'YYYY-MM-DD' — for streak tracking
   completedStepIds: [], // IDs of completed steps across all quests
   dailyQuests: {},      // { 'YYYY-MM-DD': [{id, text, icon, xp, done}] }
@@ -517,19 +518,41 @@ function updateStreak() {
 
   if (state.lastActiveDate === today) return; // already active today
 
+  const oldStreak = state.streak;
+
   if (state.lastActiveDate === yesterday) {
     // consecutive
     state.streak += 1;
   } else if (state.lastActiveDate && state.lastActiveDate !== yesterday) {
-    // broke streak
+    // broke streak — but never shame. Fresh start at day 1.
     state.streak = 1;
   } else if (!state.lastActiveDate) {
     // first time ever
     state.streak = 1;
   }
 
+  // Best streak only goes up — ADHD brains collect wins, not losses
+  if (state.streak > state.bestStreak) state.bestStreak = state.streak;
+
+  // Milestone bonuses: one-time celebrations for consistency, not unbroken chains.
+  // These fire naturally when the streak reaches the milestone on first page-load of the day.
+  const MILESTONES = { 3: [15, '🥉 3-day champ!'], 7: [50, '🥈 7-day warrior!'], 14: [100, '🥇 14-day legend!'], 30: [200, '🏆 30-day hero!'] };
+  if (MILESTONES[state.streak]) {
+    const [bonusXP, msg] = MILESTONES[state.streak];
+    state.totalXP += bonusXP;
+    saveState();
+    showToast(`${msg} +${bonusXP} XP`);
+    updateStatsBar();
+  }
+
   state.lastActiveDate = today;
   saveState();
+
+  // Pet welcome-back: when a streak breaks (was >1, is now 1), pet is just glad they're here.
+  // Never mention the break — only the return.
+  if (oldStreak > 1 && state.streak === 1 && state.pet) {
+    setTimeout(() => showPetSpeech('You\'re back! I missed you! Let\'s go! ⚡'), 1800);
+  }
 }
 
 // ---- STATS BAR RENDER ----
@@ -544,7 +567,13 @@ function updateStatsBar() {
   $xpCurrent.textContent = state.totalXP;
   $xpBar.style.width = Math.min(100, Math.max(0, progress)) + '%';
   $coinsNum.textContent = state.coins;
-  $streakNum.textContent = state.streak;
+  $streakNum.textContent = state.streak || 1; // never show 0 — ADHD-friendly
+
+  // Best streak as tooltip — a kid can hover to see their record
+  const $statStreak = document.getElementById('stat-streak');
+  if ($statStreak && state.bestStreak > 0) {
+    $statStreak.title = `Best streak: ${state.bestStreak} day${state.bestStreak !== 1 ? 's' : ''} 🔥`;
+  }
 
   // "X to Lv.N" hint — ADHD users want to know exactly how close they are
   const xpToNext = Math.max(0, nextLvXP - state.totalXP);
@@ -681,9 +710,8 @@ function burstParticles(x, y, count = 10, emoji = '✨') {
 // ---- REWARD (XP + COINS + PARTICLES + TOAST) ----
 function grantReward(event, xp, coins, message) {
   const oldLevel = getLevel();
-  const mult = 1 + (state.streak * 0.15);
-  const bonusXP = Math.round(xp * mult);
-  const bonusCoins = Math.round(coins * mult);
+  const bonusXP = xp;
+  const bonusCoins = coins;
 
   state.totalXP += bonusXP;
   state.coins += bonusCoins;
@@ -718,11 +746,10 @@ function completeStep(stepId, event) {
 
   // Toggle: if already completed, undo it (and REVERSE the rewards)
   if (state.completedStepIds.includes(stepId)) {
-    const mult = 1 + (state.streak * 0.15);
 
     // Reverse the step reward (10 XP / 5 coins at same streak multiplier)
-    state.totalXP = Math.max(0, state.totalXP - Math.round(10 * mult));
-    state.coins = Math.max(0, state.coins - Math.round(5 * mult));
+    state.totalXP = Math.max(0, state.totalXP - 10);
+    state.coins = Math.max(0, state.coins - 5);
 
     // Reverse the quest-completion bonus if it was granted
     if (state.questCompleted && state.activeQuest) {
@@ -1405,8 +1432,8 @@ function completeDailyQuest(dailyId, event) {
   // Toggle: if already done, undo it
   if (q.done) {
     q.done = false;
-    state.totalXP = Math.max(0, state.totalXP - Math.round(q.xp * (1 + state.streak * 0.15)));
-    state.coins = Math.max(0, state.coins - Math.round(3 * (1 + state.streak * 0.15)));
+    state.totalXP = Math.max(0, state.totalXP - q.xp);
+    state.coins = Math.max(0, state.coins - 3);
     playSound('undo');
     showToast('↩️ Daily quest undone.');
     updateStatsBar();
