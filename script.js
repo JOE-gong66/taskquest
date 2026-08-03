@@ -87,6 +87,8 @@ const $originalTask = document.getElementById('original-task');
 const $questBanner  = document.getElementById('quest-complete-banner');
 const $questXpBonus = document.getElementById('quest-xp-bonus');
 const $emptyState   = document.getElementById('empty-state');
+const $emptyMsg     = document.getElementById('empty-msg');
+const $emptyHint    = document.getElementById('empty-hint');
 const $dailySection = document.getElementById('daily-quests-section');
 const $dailyGrid    = document.getElementById('daily-grid');
 const $toast        = document.getElementById('toast');
@@ -406,6 +408,9 @@ function init() {
     if (sel) sel.style.display = 'none';
     const hint = document.querySelector('.api-key-row .btn-ghost');
     if (hint) hint.style.display = 'none';
+    // Empty state copy: there is no API key field or demo button here.
+    $emptyMsg.innerHTML = 'Type a task above and hit <strong>Questify!</strong>';
+    $emptyHint.textContent = 'Works instantly — the AI runs on our server. No setup needed.';
   }
 
   // Restore API key
@@ -803,7 +808,7 @@ function completeQuest() {
     setTimeout(() => {
       $taskInput.style.borderColor = '';
       $taskInput.style.boxShadow = '';
-      $taskInput.placeholder = 'e.g. "Write my history essay" or "Clean my room" or "Study for calc midterm"';
+      $taskInput.placeholder = 'e.g. "Finish my math homework" or "Write a book report" or "Read 20 pages"';
     }, 4000);
   }, 1500);
 
@@ -1216,13 +1221,13 @@ async function fetchTaskBreakdown(task) {
 function getDemoSteps(task) {
   const demos = {
     default: [
-      { title: 'Open a blank document', hint: 'Just open it. That\'s all. Don\'t write anything.', minutes: 1 },
-      { title: 'Write your topic at the top', hint: 'One word or phrase is enough. It\'s just a placeholder.', minutes: 2 },
-      { title: 'Set a timer for 8 minutes', hint: 'Tell yourself: "I only have to write for 8 minutes."', minutes: 1 },
-      { title: 'Write a messy first sentence', hint: 'Doesn\'t need to be good. Just get one thought down.', minutes: 5 },
-      { title: 'Write 3 bullet points of what you want to say', hint: 'No full sentences needed. Keywords are fine.', minutes: 8 },
-      { title: 'Turn bullets into 3 short paragraphs', hint: 'One paragraph per bullet. No editing allowed yet.', minutes: 15 },
-      { title: 'Take a 5-min break, then read it once', hint: 'You\'re almost done. Just read — don\'t edit yet.', minutes: 5 },
+      { title: 'Open your assignment and read the directions once', hint: 'Just read them. You don\'t have to start yet.', minutes: 2 },
+      { title: 'Write down ONE question you have about it', hint: 'One sentence is enough. What\'s the confusing part?', minutes: 3 },
+      { title: 'Set a timer for 8 minutes', hint: 'Tell yourself: "I only have to work for 8 minutes."', minutes: 1 },
+      { title: 'Do the first problem or write the first line', hint: 'It doesn\'t need to be perfect. Starting is the win.', minutes: 5 },
+      { title: 'Take a 3-minute stretch break', hint: 'You made real progress. Get up, drink some water.', minutes: 3 },
+      { title: 'Come back and finish one more chunk', hint: 'Just one more piece. Then you can stop for real.', minutes: 8 },
+      { title: 'Celebrate — tell your pet what you finished', hint: 'Type "done" — you earned the XP!', minutes: 1 },
     ],
   };
 
@@ -1267,7 +1272,7 @@ async function handleQuestify() {
     lastSubdivide = null;  // fresh quest, clear undo
 
     // Reset input placeholder
-    $taskInput.placeholder = 'e.g. "Write my history essay" or "Clean my room" or "Study for calc midterm"';
+    $taskInput.placeholder = 'e.g. "Finish my math homework" or "Write a book report" or "Read 20 pages"';
 
     // Save API key if entered
     if ($apiKeyInput.value.trim()) {
@@ -1288,7 +1293,7 @@ async function handleQuestify() {
 
   } catch (err) {
     if (err.message === 'no_api_key') {
-      showToast('🔑 Paste your OpenAI API key first, or click "Demo mode"');
+      showToast('🔑 Paste your API key first, or click "Demo mode"');
     } else {
       showToast(`❌ ${err.message}`);
       console.error('Questify error:', err);

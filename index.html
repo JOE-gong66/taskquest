@@ -64,7 +64,7 @@
       <div class="input-row">
         <textarea
           id="task-input"
-          placeholder='e.g. "Write my history essay" or "Clean my room" or "Study for calc midterm"'
+          placeholder='e.g. "Finish my math homework" or "Write a book report" or "Read 20 pages"'
           rows="2"
           maxlength="300"
         ></textarea>
@@ -112,8 +112,8 @@
     <section class="empty-state" id="empty-state">
       <div class="empty-illustration">🐉</div>
       <h2>Ready to slay your first dragon?</h2>
-      <p>Paste your API key above, type a task, and hit <strong>Questify!</strong></p>
-      <p class="hint">No API key? Click "Demo mode" to try with sample data.</p>
+      <p id="empty-msg">Type a task above and hit <strong>Questify!</strong></p>
+      <p class="hint" id="empty-hint">We'll break it into tiny steps you can actually start.</p>
     </section>
   </main>
 
@@ -154,8 +154,8 @@
 
   <!-- ===== FOOTER ===== -->
   <footer>
-    <p>Built for neurodivergent learners, by a neurodivergent learner · IncludAI 2026</p>
-    <p>All data stays in your browser. Nothing is sent anywhere except your task text → OpenAI API.</p>
+    <p>Built for neurodivergent K-12 students, by a neurodivergent learner · IncludAI 2026</p>
+    <p>All data stays in your browser. Nothing is sent anywhere except your task text → our AI helper.</p>
   </footer>
 
   <!-- ===== PET SANCTUARY ===== -->
