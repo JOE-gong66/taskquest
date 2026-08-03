@@ -52,6 +52,11 @@
           <span id="sound-icon">🔊</span>
         </button>
       </div>
+      <div class="stat" id="stat-font">
+        <button id="font-btn" class="sound-btn" title="Easy-reading font">
+          <span id="font-icon">🅰️</span>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -60,7 +65,7 @@
     <!-- Input Zone -->
     <section class="input-zone">
       <h1>What quest are you stuck on?</h1>
-      <p class="subtitle">Type anything. We'll break it into tiny, unfreezable steps.</p>
+      <p class="subtitle">Type it — or just say it. We'll break it into tiny steps you can actually start.</p>
       <div class="input-row">
         <textarea
           id="task-input"
@@ -68,6 +73,7 @@
           rows="2"
           maxlength="300"
         ></textarea>
+        <button id="voice-btn" class="voice-btn" title="Say your task out loud" style="display:none;">🎤</button>
         <button id="questify-btn" class="btn-primary">
           ⚡ Questify!
         </button>

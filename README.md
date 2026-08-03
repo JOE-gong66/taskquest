@@ -23,6 +23,8 @@ People with ADHD and executive dysfunction often experience **task-initiation fr
 ## 🎮 Features
 
 - AI-powered micro-task breakdown (DeepSeek) — any assignment becomes 4–7 steps of 2–15 minutes
+- **Voice input** 🎤 — early readers *say* their task ("read 20 pages") and the quest starts; no typing needed (Chrome/Edge/Safari)
+- **Easy-reading mode** 🅰️ — one tap swaps in the dyslexia-friendly OpenDyslexic typeface
 - **"Too big" button** — one click breaks any still-overwhelming step into even tinier sub-steps
 - **AI Coach** — chat with a warm ADHD coach about a stuck step; short 1–3 sentence replies that don't overwhelm
 - **Growing pet companion** — pick a pet, name it, and watch it evolve as you level up
@@ -47,7 +49,9 @@ People with ADHD and executive dysfunction often experience **task-initiation fr
 
 ## 🧠 Designed With Real Neurodivergent Users
 
-This project is designed and validated by a neurodivergent (ADHD) learner. The core insight — that task initiation, not task understanding, is the real barrier — comes from lived experience. *(Expand with K-12 user testing notes.)*
+This project is designed and validated by a neurodivergent (ADHD) learner. The core insight — that task initiation, not task understanding, is the real barrier — comes from lived experience.
+
+A child-perspective usability walkthrough (a 10-year-old with ADHD) surfaced three friction points, all addressed: the pet-creation invite moved to *after* the first completed step (no more first-screen popup), a collapsed step now reveals just that one step instead of expanding the whole task list, and pet evolution happens at level 3 so the growth hook lands on day one. We also added voice input for early readers, a dyslexia-friendly typeface toggle, and longer pet speech bubbles for slower readers. *(Expand with real K-12 user testing notes.)*
 
 ## 📄 Submission Materials
 

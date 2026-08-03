@@ -1,6 +1,26 @@
 /* ===== RESET & BASE ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* OpenDyslexic — dyslexia-friendly webfont (SIL OFL license)
+   Served from jsDelivr mirror of antijingoist/opendyslexic. */
+@font-face {
+  font-family: 'OpenDyslexic';
+  src: url('https://cdn.jsdelivr.net/gh/antijingoist/opendyslexic@master/compiled/OpenDyslexic-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'OpenDyslexic';
+  src: url('https://cdn.jsdelivr.net/gh/antijingoist/opendyslexic@master/compiled/OpenDyslexic-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+}
+
+/* Easy-reading mode: swap every font for OpenDyslexic (emojis fall back). */
+body.easy-font, body.easy-font * {
+  font-family: 'OpenDyslexic', 'Segoe UI', system-ui, sans-serif !important;
+}
+
 :root {
   /* Warm light theme — ADHD friendly */
   --bg:            #fdf6f0;
@@ -113,6 +133,32 @@ body {
 .sound-btn:hover {
   transform: scale(1.15);
   background: var(--primary-light);
+}
+
+/* Mic button for voice input (Web Speech API) */
+.voice-btn {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 1.3rem;
+  cursor: pointer;
+  padding: 0 16px;
+  transition: all var(--transition);
+  line-height: 1;
+}
+.voice-btn:hover {
+  border-color: var(--primary);
+  background: var(--primary-light);
+  transform: translateY(-1px);
+}
+.voice-btn.listening {
+  border-color: var(--danger);
+  background: #ffe9e8;
+  animation: micPulse 1.2s ease infinite;
+}
+@keyframes micPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 83, 80, .35); }
+  50%      { box-shadow: 0 0 0 8px rgba(239, 83, 80, 0); }
 }
 
 /* ===== MAIN ===== */

@@ -13,7 +13,7 @@ const PET_TYPES = {
     label: 'Dragon',
     stages: [
       { emoji: '🐣', name: 'Egglet', minLevel: 1 },
-      { emoji: '🐥', name: 'Chirp', minLevel: 4 },
+      { emoji: '🐥', name: 'Chirp', minLevel: 3 },
       { emoji: '🐉', name: 'Blaze', minLevel: 8 },
     ],
   },
@@ -21,7 +21,7 @@ const PET_TYPES = {
     label: 'Cat',
     stages: [
       { emoji: '🐱', name: 'Kitten', minLevel: 1 },
-      { emoji: '🐈', name: 'Whiskers', minLevel: 4 },
+      { emoji: '🐈', name: 'Whiskers', minLevel: 3 },
       { emoji: '🐯', name: 'Tiger', minLevel: 8 },
     ],
   },
@@ -29,7 +29,7 @@ const PET_TYPES = {
     label: 'Plant',
     stages: [
       { emoji: '🌱', name: 'Sprout', minLevel: 1 },
-      { emoji: '🌸', name: 'Bloom', minLevel: 4 },
+      { emoji: '🌸', name: 'Bloom', minLevel: 3 },
       { emoji: '🌳', name: 'Oak', minLevel: 8 },
     ],
   },
@@ -37,7 +37,7 @@ const PET_TYPES = {
     label: 'Mystic',
     stages: [
       { emoji: '👻', name: 'Boo', minLevel: 1 },
-      { emoji: '⭐', name: 'Sparkle', minLevel: 4 },
+      { emoji: '⭐', name: 'Sparkle', minLevel: 3 },
       { emoji: '🌈', name: 'Prism', minLevel: 8 },
     ],
   },
@@ -72,6 +72,9 @@ const DEFAULT_STATE = {
   pet: null,              // { type: 'dragon'|'cat'|'plant'|'ghost', name: string }
   coachChats: {},         // { [stepId]: [{ role, content }] } — persisted chat history
   focusMode: true,        // true = only show completed steps + next step (ADHD-friendly)
+  easyFont: false,        // easy-reading (OpenDyslexic) font toggle
+  petInviteShown: false,  // has the pet invite been shown? (no bossy first-screen popup)
+  revealedSteps: [],      // indices of collapsed steps the user chose to reveal in focus mode
 };
 
 let state = loadState();
@@ -184,6 +187,9 @@ function skipPet() {
   // Keep the sanctuary visible, but hide the pet and show only the + button
   $petSanctuary.style.display = '';
   hidePetContent();
+  // Remember we already invited — so it never auto-pops again, just the + button.
+  state.petInviteShown = true;
+  saveState();
   const $addBtn = document.getElementById('pet-add-btn');
   if ($addBtn) $addBtn.style.display = '';
 }
@@ -250,7 +256,7 @@ function showPetSpeech(text) {
   $petSpeech.style.animation = 'none';
   $petSpeech.offsetHeight;
   $petSpeech.style.animation = 'bubbleUp 0.3s ease';
-  petSpeechTimer = setTimeout(() => { $petSpeech.style.display = 'none'; }, 3000);
+  petSpeechTimer = setTimeout(() => { $petSpeech.style.display = 'none'; }, 4500);
 }
 
 function playPetAnimation(kind) {
@@ -440,13 +446,16 @@ function init() {
     $petModal.style.display = 'none';
     renderPetSanctuary();
     startPetIdleCycle();
+  } else if (state.petInviteShown) {
+    // Already invited but skipped — show only the "get a companion" button.
+    $petModal.style.display = 'none';
+    $petSanctuary.style.display = '';
+    hidePetContent();
+    const $addBtn = document.getElementById('pet-add-btn');
+    if ($addBtn) $addBtn.style.display = '';
   } else {
-    // First visit — show selection modal after a short warm delay
+    // First visit: no bossy popup. Complete your first step and we'll invite you.
     $petSanctuary.style.display = 'none';
-    setTimeout(() => {
-      $petModal.style.display = '';
-      renderPetChoices();
-    }, 800);
   }
 
   // Pet modal events
@@ -752,6 +761,13 @@ function completeStep(stepId, event) {
   playSound('complete');
   playPetAnimation('happy');
 
+  // First-ever win: gently invite them to adopt a pet AFTER they feel the reward.
+  if (!state.pet && !state.petInviteShown) {
+    state.petInviteShown = true;
+    saveState();
+    setTimeout(() => reopenPetModal(), 900);
+  }
+
   // Check if all steps done
   if (state.activeQuest) {
     const allDone = state.activeQuest.steps.every(s => state.completedStepIds.includes(s.id));
@@ -855,10 +871,12 @@ function renderQuestBoard() {
   $stepsGrid.innerHTML = steps.map((s, i) => {
     const done = state.completedStepIds.includes(s.id);
 
-    // Collapse step if focus mode is on and this is neither done nor the next step
-    if (focusOn && !done && i !== nextUndoneIdx) {
+    // Collapse step if focus mode is on and this is neither done nor the next step.
+    // Tapping one collapsed bar reveals THAT step — never the whole wall.
+    const revealed = state.revealedSteps.includes(i);
+    if (focusOn && !done && i !== nextUndoneIdx && !revealed) {
       return `
-        <div class="step-card step-card-collapsed" onclick="toggleFocusMode()" title="Show all steps" role="button" tabindex="0" aria-label="Press Enter to show all steps: ${escapeAttr(s.title)}">
+        <div class="step-card step-card-collapsed" onclick="revealStep(${i})" title="Show this step" role="button" tabindex="0" aria-label="Press Enter to show this step: ${escapeAttr(s.title)}">
           <div class="step-number">${i + 1}</div>
           <div class="step-title collapsed-title">${escapeHtml(s.title)}</div>
           <span class="collapsed-hint">tap to reveal ↓</span>
@@ -895,6 +913,13 @@ function renderQuestBoard() {
       </div>
     `;
   }
+}
+
+// Reveal ONE collapsed step without expanding the whole list (ADHD-safe)
+function revealStep(idx) {
+  if (!state.revealedSteps.includes(idx)) state.revealedSteps.push(idx);
+  saveState();
+  renderQuestBoard();
 }
 
 // Toggle between "just the next step" (focused) and "show all steps"
@@ -1161,6 +1186,7 @@ async function subdivideStep(stepId) {
     lastSubdivide = { stepIndex: idx, originalStep, newCount: subSteps.length, timestamp: Date.now() };
 
     state.activeQuest.steps.splice(idx, 1, ...subSteps);
+    state.revealedSteps = []; // indices shifted — drop stale reveals
 
     // Remove completed entry for the old step if any
     state.completedStepIds = state.completedStepIds.filter(id => id !== stepId);
@@ -1183,6 +1209,7 @@ function undoSubdivide() {
 
   // Remove the sub-steps we inserted
   state.activeQuest.steps.splice(stepIndex, newCount, originalStep);
+  state.revealedSteps = []; // indices shifted — drop stale reveals
 
   // Remove completed entries for the sub-steps
   state.completedStepIds = state.completedStepIds.filter(id =>
@@ -1285,6 +1312,7 @@ async function handleQuestify() {
     state.questCompleted = false;
     state.coachChats = {}; // fresh quest, fresh chats
     lastSubdivide = null;  // fresh quest, clear undo
+    state.revealedSteps = []; // fresh quest, fresh collapse state
 
     // Reset input placeholder
     $taskInput.placeholder = 'e.g. "Finish my math homework" or "Write a book report" or "Read 20 pages"';
@@ -1535,6 +1563,75 @@ document.addEventListener('keydown', (e) => {
   el.click();
 });
 
+// ---- VOICE INPUT (Web Speech API — no external dependency) ----
+// Lets early readers SAY their task instead of typing it.
+// Works in Chrome / Edge / Safari; the mic button stays hidden elsewhere.
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+function setupVoiceInput() {
+  const micBtn = document.getElementById('voice-btn');
+  if (!micBtn || !SpeechRecognition) return; // unsupported — keep hidden
+
+  micBtn.style.display = '';
+  micBtn.title = 'Say your task out loud';
+
+  let recognizing = false;
+  let recog = null;
+
+  const stopListening = () => {
+    recognizing = false;
+    micBtn.textContent = '🎤';
+    micBtn.classList.remove('listening');
+    if (recog) { try { recog.stop(); } catch (e) {} }
+  };
+
+  micBtn.addEventListener('click', () => {
+    if (recognizing) { stopListening(); return; }
+    try {
+      recog = new SpeechRecognition();
+      recog.lang = 'en-US';
+      recog.interimResults = false;
+      recog.maxAlternatives = 1;
+      recog.continuous = false;
+      recog.onresult = (e) => {
+        const transcript = e.results[0][0].transcript.trim();
+        if (!transcript) return;
+        $taskInput.value = transcript;
+        handleQuestify(); // speak → quest, instantly
+      };
+      recog.onend = stopListening;
+      recog.onerror = () => stopListening();
+      recognizing = true;
+      micBtn.textContent = '🔴';
+      micBtn.classList.add('listening');
+      recog.start();
+    } catch (e) {
+      stopListening();
+      showToast('🎤 Speech isn\'t available on this browser.');
+    }
+  });
+}
+
+// ---- EASY-READING FONT TOGGLE (OpenDyslexic) ----
+function applyEasyFont() {
+  document.body.classList.toggle('easy-font', state.easyFont);
+  const icon = document.getElementById('font-icon');
+  const btn = document.getElementById('font-btn');
+  if (!icon || !btn) return;
+  icon.textContent = state.easyFont ? '🔤' : '🅰️';
+  btn.title = state.easyFont ? 'Easy-reading font: on' : 'Easy-reading font: off';
+}
+
+document.addEventListener('click', (e) => {
+  if (e.target.closest('#font-btn')) {
+    state.easyFont = !state.easyFont;
+    saveState();
+    applyEasyFont();
+  }
+});
+
 // ---- KICK IT OFF ----
 init();
 updateSoundIcon();
+applyEasyFont();
+setupVoiceInput();
