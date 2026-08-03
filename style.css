@@ -1149,6 +1149,15 @@ footer p { margin-bottom: 2px; }
   margin-right: 12px;
 }
 
+/* Keyboard focus — visible ring on the clickable "cards" */
+.step-card:focus-visible,
+.daily-card:focus-visible,
+.pet-choice:focus-visible,
+.subdivide-undo-bar:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
+
 /* ===== AI COACH PANEL ===== */
 .coach-overlay {
   position: fixed;

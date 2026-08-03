@@ -156,7 +156,7 @@ function renderPetChoices() {
   $petChoices.innerHTML = Object.entries(PET_TYPES).map(([key, def]) => {
     const s0 = def.stages[0];
     return `
-      <div class="pet-choice" data-type="${key}" onclick="selectPetOption('${key}')">
+      <div class="pet-choice" data-type="${key}" onclick="selectPetOption('${key}')" role="button" tabindex="0" aria-label="Press Enter to choose ${escapeAttr(s0.name)} (${escapeAttr(def.label)})">
         <span class="pet-choice-emoji">${s0.emoji}</span>
         <span class="pet-choice-label">${s0.name}</span>
         <span class="pet-choice-type">${def.label}</span>
@@ -688,10 +688,16 @@ function grantReward(event, xp, coins, message) {
     checkPetEvolution(oldLevel, newLevel);
   }
 
-  // Particles at click position
+  // Particles at click position (keyboard Enter has no pointer coords → card center)
   if (event) {
-    burstParticles(event.clientX, event.clientY, 8, '✨');
-    setTimeout(() => burstParticles(event.clientX + 20, event.clientY - 10, 5, '🪙'), 200);
+    let x = event.clientX, y = event.clientY;
+    if ((!x && !y) && event.currentTarget && event.currentTarget.getBoundingClientRect) {
+      const r = event.currentTarget.getBoundingClientRect();
+      x = r.left + r.width / 2;
+      y = r.top + r.height / 2;
+    }
+    burstParticles(x, y, 8, '✨');
+    setTimeout(() => burstParticles(x + 20, y - 10, 5, '🪙'), 200);
   }
 
   saveState();
@@ -852,7 +858,7 @@ function renderQuestBoard() {
     // Collapse step if focus mode is on and this is neither done nor the next step
     if (focusOn && !done && i !== nextUndoneIdx) {
       return `
-        <div class="step-card step-card-collapsed" onclick="toggleFocusMode()" title="Show all steps">
+        <div class="step-card step-card-collapsed" onclick="toggleFocusMode()" title="Show all steps" role="button" tabindex="0" aria-label="Press Enter to show all steps: ${escapeAttr(s.title)}">
           <div class="step-number">${i + 1}</div>
           <div class="step-title collapsed-title">${escapeHtml(s.title)}</div>
           <span class="collapsed-hint">tap to reveal ↓</span>
@@ -861,7 +867,7 @@ function renderQuestBoard() {
     }
 
     return `
-      <div class="step-card ${done ? 'completed' : ''}" data-step-id="${s.id}" onclick="completeStep('${s.id}', event)">
+      <div class="step-card ${done ? 'completed' : ''}" data-step-id="${s.id}" onclick="completeStep('${s.id}', event)" role="button" tabindex="0" aria-label="${done ? 'Completed. Press Enter to undo: ' : 'Press Enter to complete: '}${escapeAttr(s.title)}">
         <div class="step-number">${done ? '✓' : i + 1}</div>
         <div class="step-content">
           <div class="step-title">${escapeHtml(s.title)}</div>
@@ -883,9 +889,9 @@ function renderQuestBoard() {
   if (lastSubdivide) {
     const orig = lastSubdivide.originalStep;
     $stepsGrid.innerHTML += `
-      <div class="subdivide-undo-bar" onclick="undoSubdivide()">
+      <div class="subdivide-undo-bar" onclick="undoSubdivide()" role="button" tabindex="0" aria-label="Press Enter to undo the step split">
         <span>📦 "${escapeHtml(orig.title)}" &rarr; ${lastSubdivide.newCount} smaller steps</span>
-        <button class="step-action-btn step-action-undo">↩️ Undo split</button>
+        <button class="step-action-btn step-action-undo" tabindex="-1">↩️ Undo split</button>
       </div>
     `;
   }
@@ -1409,7 +1415,7 @@ function renderDailyQuests() {
 
   $dailySection.style.display = '';
   $dailyGrid.innerHTML = quests.map(q => `
-    <div class="daily-card ${q.done ? 'completed' : ''}" onclick="completeDailyQuest('${q.id}', event)">
+    <div class="daily-card ${q.done ? 'completed' : ''}" onclick="completeDailyQuest('${q.id}', event)" role="button" tabindex="0" aria-label="${q.done ? 'Completed. Press Enter to undo: ' : 'Press Enter to complete: '}${escapeAttr(q.text)}">
       <span class="daily-icon">${q.icon}</span>
       <span class="daily-text">${escapeHtml(q.text)}</span>
       <span class="daily-xp">${q.done ? '✅' : '+' + q.xp + ' XP'}</span>
@@ -1424,6 +1430,11 @@ function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
+}
+
+// escapeHtml for use inside double-quoted HTML attributes (aria-labels)
+function escapeAttr(str) {
+  return escapeHtml(str).replace(/"/g, '&quot;');
 }
 
 // ---- EVENT LISTENERS ----
@@ -1512,6 +1523,17 @@ function unlockAudio() {
 }
 document.addEventListener('click', unlockAudio);
 document.addEventListener('keydown', unlockAudio);
+
+// Make div-with-onclick controls keyboard-accessible: Enter/Space on a
+// [role=button] simulates a click. Never intercepts native buttons/inputs.
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  if (e.target.closest('button, a, input, textarea, select')) return;
+  const el = e.target.closest('[role="button"]');
+  if (!el) return;
+  e.preventDefault();
+  el.click();
+});
 
 // ---- KICK IT OFF ----
 init();
