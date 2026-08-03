@@ -569,7 +569,8 @@ function loadState() {
 }
 
 function saveState() {
-  localStorage.setItem('taskquest_state', JSON.stringify(state));
+  try { localStorage.setItem('taskquest_state', JSON.stringify(state)); }
+  catch (e) { /* storage unavailable — keep running in-memory */ }
 }
 
 // ---- STATS HELPERS ----
