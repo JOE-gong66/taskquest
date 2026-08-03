@@ -88,6 +88,7 @@ const DEFAULT_STATE = {
   revealedSteps: [],      // indices of collapsed steps the user chose to reveal in focus mode
   stepEvents: [],          // [{ stepId, taskCategory, minutes, verbType, depth, outcome, shownAt, completedAt, at }]
   profileOverrides: {},    // { granularityThreshold?: number, splitCeiling?: number, bestVerbsEnabled?: bool, chainLengthEnabled?: bool, hardCategoriesEnabled?: bool }
+  demoProfileEnabled: false, // demo mode: use synthetic 3-week user profile for stable demo video contrast
 };
 
 let state = loadState();
@@ -1429,7 +1430,8 @@ async function fetchTaskBreakdown(task) {
   const apiKey = !IS_PRODUCTION ? (state.apiKey || $apiKeyInput.value.trim()) : null;
   if (!IS_PRODUCTION && !apiKey) throw new Error('no_api_key');
 
-  const profile = buildUserProfile(state.stepEvents);
+  const events = state.demoProfileEnabled ? getDemoStepEvents() : state.stepEvents;
+  const profile = buildUserProfile(events);
   const profileHint = renderProfileHint(profile);
 
   const payload = IS_PRODUCTION
@@ -1754,6 +1756,66 @@ function buildUserProfile(stepEvents) {
   return { granularityThreshold, splitCeiling, bestVerbs, chainLength, hardCategories, isColdStart: false };
 }
 
+// Synthetic 3-week user events for demo mode.
+// Designed so buildUserProfile() returns: granularity ~2min, all-physical bias, chainLength ~7.
+// Every value is hardcoded — no Math.random() — for stable demo video reproduction.
+function getDemoStepEvents() {
+  const now = Date.now();
+  const DAY = 86400000;
+  const events = [];
+  let id = 0;
+
+  function make(opts) {
+    const at = now - opts.daysAgo * DAY - (opts.hourOffset || 10) * 3600000;
+    events.push({
+      stepId: `demo_ev_${id++}`,
+      taskCategory: opts.cat,
+      minutes: opts.min,
+      verbType: opts.verb,
+      depth: opts.depth || 0,
+      outcome: opts.outcome,
+      shownAt: at - 60000,
+      completedAt: opts.outcome === 'completed' ? at : 0,
+      at,
+    });
+  }
+
+  // Simulate 15 active days across 3 weeks.
+  // Each active day: a full 5–7 step quest, mostly physical at 2 min.
+  const activeDays = [21,20,18,17,15,14,12,11,10,8,7,5,4,2,1];
+  activeDays.forEach((d, di) => {
+    const stepsThisDay = di < 5 ? 5 : 7; // first 5 sessions are 5 steps, rest are 7
+    for (let s = 0; s < stepsThisDay; s++) {
+      const cat = s < stepsThisDay - 1 ? 'writing a book report' : (di % 3 === 0 ? 'math homework' : 'reading assignment');
+      make({
+        cat, min: 2,
+        verb: s === 0 ? 'physical' : (s < stepsThisDay - 1 ? 'physical' : 'creative'),
+        depth: 0, outcome: 'completed',
+        daysAgo: d, hourOffset: 10 + s * 0.12, // 7-min gaps → all within 1 hour
+      });
+    }
+  });
+
+  // Cognitive steps at 7-10 min — ALL split (builds splitCeiling and low cognitive rate)
+  for (let d = 20; d >= 3; d -= 4) {
+    make({ cat: 'writing a book report', min: 8, verb: 'cognitive', depth: 2, outcome: 'split', daysAgo: d, hourOffset: 15 });
+    make({ cat: 'writing an essay', min: 7, verb: 'cognitive', depth: 2, outcome: 'split', daysAgo: d, hourOffset: 16 });
+  }
+
+  // Writing tasks with extra depth (creative substeps after initial split)
+  for (let d = 18; d >= 4; d -= 5) {
+    make({ cat: 'writing a book report', min: 3, verb: 'creative', depth: 1, outcome: 'completed', daysAgo: d, hourOffset: 17 });
+    make({ cat: 'writing an essay', min: 4, verb: 'creative', depth: 1, outcome: 'completed', daysAgo: d, hourOffset: 18 });
+  }
+
+  // Social — low volume, all completed (neutral rate)
+  for (let d = 14; d >= 2; d -= 7) {
+    make({ cat: 'group presentation', min: 3, verb: 'social', depth: 0, outcome: 'completed', daysAgo: d, hourOffset: 19 });
+  }
+
+  return events;
+}
+
 // Render profile as natural-language hint for the AI breakdown prompt.
 // Only positive framing — never mention failure or weakness.
 function renderProfileHint(profile) {
@@ -1813,6 +1875,14 @@ function openProfilePanel() {
   if (!$content) return;
 
   $content.innerHTML = `
+    <div class="profile-field" style="background:var(--info-light);border-color:var(--info);">
+      <label class="profile-checkbox-label">
+        <input type="checkbox" id="pf-demo-enabled" ${state.demoProfileEnabled ? 'checked' : ''} aria-label="Enable demo profile for video recording">
+        <span aria-hidden="true">🎬</span> <strong>Demo mode</strong> — use a pre-built &ldquo;3-week user&rdquo; profile
+      </label>
+      <p class="profile-hint">For demo videos: same input &rarr; more steps, shorter, all physical-action starts. Stable every time. Turn off to use your real data.</p>
+    </div>
+
     <div class="profile-field">
       <label class="profile-label"><span aria-hidden="true">⏱</span> You start best with steps around</label>
       <div class="profile-field-row">
@@ -1867,12 +1937,22 @@ function saveProfileOverrides() {
   const $verbs = document.getElementById('pf-verbs-enabled');
   const $chain = document.getElementById('pf-chain-enabled');
   const $cats = document.getElementById('pf-categories-enabled');
+  const $demo = document.getElementById('pf-demo-enabled');
 
   if ($gran) state.profileOverrides.granularityThreshold = Math.max(0.5, Math.min(60, parseFloat($gran.value) || 3));
   if ($split) state.profileOverrides.splitCeiling = Math.max(1, Math.min(60, parseInt($split.value) || 8));
   if ($verbs) state.profileOverrides.bestVerbsEnabled = $verbs.checked;
   if ($chain) state.profileOverrides.chainLengthEnabled = $chain.checked;
   if ($cats) state.profileOverrides.hardCategoriesEnabled = $cats.checked;
+  if ($demo) {
+    const wasEnabled = state.demoProfileEnabled;
+    state.demoProfileEnabled = $demo.checked;
+    if (state.demoProfileEnabled !== wasEnabled) {
+      announce(state.demoProfileEnabled
+        ? 'Demo profile enabled. Next quest breakdown will use the pre-built 3-week user profile.'
+        : 'Demo profile disabled. Back to your real learning data.');
+    }
+  }
   saveState();
 }
 
