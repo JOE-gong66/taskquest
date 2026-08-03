@@ -87,6 +87,7 @@ const DEFAULT_STATE = {
   petInviteShown: false,  // has the pet invite been shown? (no bossy first-screen popup)
   revealedSteps: [],      // indices of collapsed steps the user chose to reveal in focus mode
   stepEvents: [],          // [{ stepId, taskCategory, minutes, verbType, depth, outcome, shownAt, completedAt, at }]
+  profileOverrides: {},    // { granularityThreshold?: number, splitCeiling?: number, bestVerbsEnabled?: bool, chainLengthEnabled?: bool, hardCategoriesEnabled?: bool }
 };
 
 let state = loadState();
@@ -558,6 +559,18 @@ function init() {
   $shopModal.addEventListener('click', (e) => {
     if (e.target === $shopModal) closeShopModal();
   });
+
+  // Learning profile panel
+  const $profileBtn = document.getElementById('profile-btn');
+  const $profileOverlay = document.getElementById('profile-overlay');
+  const $profileCloseBtn = document.getElementById('profile-close-btn');
+  const $profileSaveBtn = document.getElementById('profile-save-btn');
+  const $profileClearBtn = document.getElementById('profile-clear-btn');
+  if ($profileBtn) $profileBtn.addEventListener('click', openProfilePanel);
+  if ($profileOverlay) $profileOverlay.addEventListener('click', () => closeProfilePanel(true));
+  if ($profileCloseBtn) $profileCloseBtn.addEventListener('click', () => closeProfilePanel(false));
+  if ($profileSaveBtn) $profileSaveBtn.addEventListener('click', () => closeProfilePanel(true));
+  if ($profileClearBtn) $profileClearBtn.addEventListener('click', clearAllData);
 }
 
 // ---- STATE PERSISTENCE ----
@@ -1745,11 +1758,20 @@ function buildUserProfile(stepEvents) {
 // Only positive framing — never mention failure or weakness.
 function renderProfileHint(profile) {
   if (!profile || profile.isColdStart) return '';
+  const ov = state.profileOverrides || {};
+
+  // Apply overrides to computed profile values
+  const granularity = ov.granularityThreshold != null ? ov.granularityThreshold : profile.granularityThreshold;
+  const splitCeiling = ov.splitCeiling != null ? ov.splitCeiling : profile.splitCeiling;
+  const verbsOn = ov.bestVerbsEnabled !== false;
+  const chainOn = ov.chainLengthEnabled !== false;
+  const catsOn = ov.hardCategoriesEnabled !== false;
+
   const lines = [];
-  // Granularity
-  lines.push(`This student's ideal starting step is about ${profile.granularityThreshold} minutes. Steps over ${profile.splitCeiling} minutes tend to get broken down — please keep early steps at or under ${profile.granularityThreshold} minutes.`);
-  // Best verb types
-  if (profile.bestVerbs.length >= 2) {
+  // Granularity (always included as floor/ceiling guardrails)
+  lines.push(`This student's ideal starting step is about ${granularity} minutes. Steps over ${splitCeiling} minutes tend to get broken down — please keep early steps at or under ${granularity} minutes.`);
+  // Best verb types (only if enabled)
+  if (verbsOn && profile.bestVerbs.length >= 2) {
     const best = profile.bestVerbs[0];
     const worst = profile.bestVerbs[profile.bestVerbs.length - 1];
     if (best.rate > 0.5) {
@@ -1759,17 +1781,116 @@ function renderProfileHint(profile) {
       lines.push(`"${worst.verb}" steps benefit from being wrapped in a small physical action first (e.g. "open your notebook" before a thinking step).`);
     }
   }
-  // Chain length
-  if (profile.chainLength > 1) {
+  // Chain length (only if enabled)
+  if (chainOn && profile.chainLength > 1) {
     lines.push(`They typically complete ${profile.chainLength} steps in a row. Place ${Math.max(1, profile.chainLength)} short wins before any deeper-thinking step.`);
   }
-  // Hard categories
-  if (profile.hardCategories.length > 0) {
+  // Hard categories (only if enabled)
+  if (catsOn && profile.hardCategories.length > 0) {
     const hardest = profile.hardCategories[0];
     lines.push(`Tasks similar to "${hardest.category}" respond well to one extra breakdown layer — please add detail for these.`);
   }
   return lines.join(' ');
 }
+
+// ---- LEARNING PROFILE PANEL ----
+function openProfilePanel() {
+  const profile = buildUserProfile(state.stepEvents);
+  const ov = state.profileOverrides || {};
+
+  // Effective values (overrides take precedence)
+  const effGranularity = ov.granularityThreshold != null ? ov.granularityThreshold : profile.granularityThreshold;
+  const effSplitCeiling = ov.splitCeiling != null ? ov.splitCeiling : profile.splitCeiling;
+  const bestVerbsEnabled = ov.bestVerbsEnabled !== false;
+  const chainLengthEnabled = ov.chainLengthEnabled !== false;
+  const hardCategoriesEnabled = ov.hardCategoriesEnabled !== false;
+
+  const cold = profile.isColdStart;
+  const bestVerb = profile.bestVerbs.length > 0 ? profile.bestVerbs[0].verb : 'physical';
+  const hardestCat = profile.hardCategories.length > 0 ? profile.hardCategories[0].category : 'writing';
+
+  const $content = document.getElementById('profile-content');
+  if (!$content) return;
+
+  $content.innerHTML = `
+    <div class="profile-field">
+      <label class="profile-label"><span aria-hidden="true">⏱</span> You start best with steps around</label>
+      <div class="profile-field-row">
+        <input type="number" id="pf-granularity" class="profile-input" value="${effGranularity}" min="0.5" max="60" step="0.5" aria-label="Ideal step length in minutes">
+        <span class="profile-unit">minutes</span>
+      </div>
+      <p class="profile-hint">${cold ? '(We need more data to know for sure.)' : 'Adjust if this feels wrong — we will learn from it.'}</p>
+    </div>
+
+    <div class="profile-field">
+      <label class="profile-label"><span aria-hidden="true">📏</span> Steps longer than</label>
+      <div class="profile-field-row">
+        <input type="number" id="pf-split-ceiling" class="profile-input" value="${effSplitCeiling}" min="1" max="60" step="1" aria-label="Maximum comfortable step length in minutes">
+        <span class="profile-unit">minutes work better when broken into smaller pieces</span>
+      </div>
+      <p class="profile-hint">${cold ? '(This is a starting guess — it gets more accurate over time.)' : 'Longer steps are fine — this just helps us know when to offer a split.'}</p>
+    </div>
+
+    <div class="profile-field">
+      <label class="profile-checkbox-label">
+        <input type="checkbox" id="pf-verbs-enabled" ${bestVerbsEnabled ? 'checked' : ''} aria-label="Use action-type insights">
+        <span aria-hidden="true">⚡</span> You shine with <strong>${bestVerb}</strong> actions
+      </label>
+      <p class="profile-hint">${cold ? '(This will get more specific as you complete more quests.)' : 'We will lean into this type of step when we can.'}</p>
+    </div>
+
+    <div class="profile-field">
+      <label class="profile-checkbox-label">
+        <input type="checkbox" id="pf-chain-enabled" ${chainLengthEnabled ? 'checked' : ''} aria-label="Use step chain insights">
+        <span aria-hidden="true">🔗</span> You often complete <strong>${profile.chainLength}</strong> steps in a row
+      </label>
+      <p class="profile-hint">We will place short wins before deeper steps, based on your rhythm.</p>
+    </div>
+
+    <div class="profile-field">
+      <label class="profile-checkbox-label">
+        <input type="checkbox" id="pf-categories-enabled" ${hardCategoriesEnabled ? 'checked' : ''} aria-label="Use task category insights">
+        <span aria-hidden="true">🎯</span> Tasks similar to <strong>${hardestCat}</strong> benefit from extra detail
+      </label>
+      <p class="profile-hint">${cold ? '(Complete more quests and we will find patterns.)' : 'We will add an extra breakdown layer for these types of tasks.'}</p>
+    </div>
+  `;
+
+  document.getElementById('profile-overlay').style.display = '';
+  document.getElementById('profile-panel').style.display = '';
+  announce('Learning profile opened. You can adjust how TaskQuest breaks down tasks for you.');
+}
+
+function saveProfileOverrides() {
+  const $gran = document.getElementById('pf-granularity');
+  const $split = document.getElementById('pf-split-ceiling');
+  const $verbs = document.getElementById('pf-verbs-enabled');
+  const $chain = document.getElementById('pf-chain-enabled');
+  const $cats = document.getElementById('pf-categories-enabled');
+
+  if ($gran) state.profileOverrides.granularityThreshold = Math.max(0.5, Math.min(60, parseFloat($gran.value) || 3));
+  if ($split) state.profileOverrides.splitCeiling = Math.max(1, Math.min(60, parseInt($split.value) || 8));
+  if ($verbs) state.profileOverrides.bestVerbsEnabled = $verbs.checked;
+  if ($chain) state.profileOverrides.chainLengthEnabled = $chain.checked;
+  if ($cats) state.profileOverrides.hardCategoriesEnabled = $cats.checked;
+  saveState();
+}
+
+function closeProfilePanel(save = true) {
+  if (save) saveProfileOverrides();
+  document.getElementById('profile-overlay').style.display = 'none';
+  document.getElementById('profile-panel').style.display = 'none';
+  announce('Learning profile closed.');
+}
+
+function clearAllData() {
+  if (!confirm('This will erase all your quests, XP, pet, coins, and learning data. This cannot be undone. Are you sure?')) return;
+  localStorage.removeItem('taskquest_state');
+  location.reload();
+}
+
+// Update renderProfileHint to respect overrides
+// (modifies the existing function — we add override logic inline below)
 
 // ---- UTILS ----
 function escapeHtml(str) {

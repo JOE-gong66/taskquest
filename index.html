@@ -57,6 +57,11 @@
           <span id="font-icon">🅰️</span>
         </button>
       </div>
+      <div class="stat" id="stat-profile">
+        <button id="profile-btn" class="sound-btn" title="Your learning profile" aria-label="Your learning profile">
+          <span aria-hidden="true">📊</span>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -188,6 +193,21 @@
         <!-- JS injected -->
       </div>
       <button class="btn-ghost" id="shop-close-btn" style="margin-top:12px;">Close</button>
+    </div>
+  </div>
+
+  <!-- ===== LEARNING PROFILE PANEL ===== -->
+  <div class="pet-modal-overlay" id="profile-overlay" style="display:none;"></div>
+  <div class="pet-modal-card" id="profile-panel" style="display:none; position:fixed; z-index:1001; top:50%; left:50%; transform:translate(-50%,-50%); max-width:520px; width:92%; max-height:85vh; overflow-y:auto;" role="dialog" aria-label="Your learning profile">
+    <h2><span aria-hidden="true">📊</span> Your Learning Profile</h2>
+    <p class="pet-modal-sub">What TaskQuest has learned about how you work best. You can adjust anything.</p>
+    <div id="profile-content">
+      <!-- JS injected -->
+    </div>
+    <div style="display:flex;gap:10px;justify-content:center;margin-top:16px;flex-wrap:wrap;">
+      <button class="btn-primary" id="profile-save-btn">Save changes</button>
+      <button class="btn-ghost" id="profile-close-btn">Close</button>
+      <button class="btn-ghost" id="profile-clear-btn" style="color:var(--danger);border-color:var(--danger);">Clear all data</button>
     </div>
   </div>
 
