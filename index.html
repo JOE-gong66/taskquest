@@ -75,7 +75,7 @@
         ></textarea>
         <button id="voice-btn" class="voice-btn" title="Say your task out loud" style="display:none;">🎤</button>
         <button id="questify-btn" class="btn-primary">
-          ⚡ Questify!
+          ⚡ Make it tiny!
         </button>
       </div>
       <div class="api-key-row">
@@ -118,7 +118,7 @@
     <section class="empty-state" id="empty-state">
       <div class="empty-illustration">🐉</div>
       <h2>Ready to slay your first dragon?</h2>
-      <p id="empty-msg">Type a task above and hit <strong>Questify!</strong></p>
+      <p id="empty-msg">Type a task above and hit <strong>Make it tiny!</strong></p>
       <p class="hint" id="empty-hint">We'll break it into tiny steps you can actually start.</p>
     </section>
   </main>
@@ -169,10 +169,24 @@
     <div class="pet-speech-bubble" id="pet-speech"></div>
     <div class="pet-stage-dots" id="pet-dots"></div>
     <div class="pet-avatar-wrap" id="pet-avatar-wrap">
+      <span class="pet-accessory" id="pet-accessory"></span>
       <span class="pet-emoji" id="pet-emoji"></span>
     </div>
     <div class="pet-name-tag" id="pet-name-tag"></div>
     <button class="pet-add-btn" id="pet-add-btn" title="Get a companion!" style="display:none;">+🐾</button>
+    <button class="pet-shop-btn" id="pet-shop-btn" title="Pet shop — dress up your friend!" style="display:none;">🛍️</button>
+  </div>
+
+  <!-- ===== PET SHOP MODAL ===== -->
+  <div class="pet-modal-overlay" id="shop-modal" style="display:none;">
+    <div class="pet-modal-card">
+      <h2>🛍️ Pet Shop</h2>
+      <p class="pet-modal-sub">Spend your coins to dress up your friend!</p>
+      <div class="shop-grid" id="shop-grid">
+        <!-- JS injected -->
+      </div>
+      <button class="btn-ghost" id="shop-close-btn" style="margin-top:12px;">Close</button>
+    </div>
   </div>
 
   <script src="script.js"></script>

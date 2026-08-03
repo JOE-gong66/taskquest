@@ -943,6 +943,95 @@ footer p { margin-bottom: 2px; }
   transform: scale(1.1);
 }
 
+/* Dress-up accessory that sits on the pet's head */
+.pet-accessory {
+  position: absolute;
+  top: -14px;
+  right: -8px;
+  font-size: 1.4rem;
+  z-index: 3;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,.15));
+}
+
+/* Pet shop button — sits under the pet, opens the shop */
+.pet-shop-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid var(--gold);
+  background: var(--gold-light);
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
+  color: var(--text);
+  margin-top: 4px;
+}
+
+.pet-shop-btn:hover {
+  border-color: var(--primary);
+  background: var(--primary-light);
+  transform: scale(1.1);
+}
+
+/* Shop grid */
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.shop-item {
+  padding: 12px 10px;
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+  background: var(--bg);
+}
+
+.shop-item:hover {
+  border-color: var(--primary);
+  box-shadow: 0 2px 12px rgba(232, 120, 42, 0.1);
+  transform: translateY(-1px);
+}
+
+.shop-item.owned {
+  border-color: var(--success);
+  background: var(--success-light);
+  cursor: default;
+}
+
+.shop-item.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.shop-item-emoji {
+  font-size: 2rem;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.shop-item-name {
+  font-weight: 700;
+  font-size: 0.85rem;
+  display: block;
+}
+
+.shop-item-price {
+  font-size: 0.75rem;
+  color: var(--gold);
+  font-weight: 600;
+  display: block;
+  margin-top: 2px;
+}
+
 /* ===== PET ANIMATIONS ===== */
 
 /* Idle: gentle sway */

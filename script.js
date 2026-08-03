@@ -56,6 +56,15 @@ const PET_QUOTES = [
   'You showed up today. I\'m proud of you. 🥹',
 ];
 
+// ---- PET SHOP (spend coins on dress-up) ----
+const PET_ACCESSORIES = [
+  { id: 'hat',     emoji: '🎩', name: 'Cool Hat',    price: 20 },
+  { id: 'glasses', emoji: '🕶️', name: 'Shades',      price: 50 },
+  { id: 'bow',     emoji: '🎀', name: 'Cute Bow',    price: 50 },
+  { id: 'crown',   emoji: '👑', name: 'Crown',       price: 100 },
+  { id: 'medal',   emoji: '🥇', name: 'Gold Medal',  price: 200 },
+];
+
 // ---- STATE (persisted to localStorage) ----
 const DEFAULT_STATE = {
   totalXP: 0,
@@ -71,6 +80,7 @@ const DEFAULT_STATE = {
   provider: 'deepseek',  // 'deepseek' or 'openai'
   soundLevel: 'medium',  // 'low' | 'medium' | 'high'
   pet: null,              // { type: 'dragon'|'cat'|'plant'|'ghost', name: string }
+  petAccessories: [],     // ids of dress-up items the pet has bought (pet shop)
   coachChats: {},         // { [stepId]: [{ role, content }] } — persisted chat history
   focusMode: true,        // true = only show completed steps + next step (ADHD-friendly)
   easyFont: false,        // easy-reading (OpenDyslexic) font toggle
@@ -103,6 +113,11 @@ const $petChoices   = document.getElementById('pet-choices');
 const $petNameInput = document.getElementById('pet-name-input');
 const $petConfirm   = document.getElementById('pet-confirm-btn');
 const $petSanctuary = document.getElementById('pet-sanctuary');
+const $petAccessory = document.getElementById('pet-accessory');
+const $petShopBtn    = document.getElementById('pet-shop-btn');
+const $shopModal     = document.getElementById('shop-modal');
+const $shopGrid      = document.getElementById('shop-grid');
+const $shopCloseBtn  = document.getElementById('shop-close-btn');
 const $petEmoji     = document.getElementById('pet-emoji');
 const $petNameTag   = document.getElementById('pet-name-tag');
 const $petDots      = document.getElementById('pet-dots');
@@ -144,6 +159,14 @@ function renderPetSanctuary() {
     $petEmoji.innerHTML = stage.emoji;
   }
   if ($petNameTag) $petNameTag.textContent = state.pet.name;
+
+  // Dress-up accessory — show the most recent purchase on the pet's head
+  if ($petAccessory) {
+    const accId = state.petAccessories[state.petAccessories.length - 1];
+    const acc = PET_ACCESSORIES.find(a => a.id === accId);
+    $petAccessory.textContent = acc ? acc.emoji : '';
+  }
+  if ($petShopBtn) $petShopBtn.style.display = state.pet ? '' : 'none';
 
   // Stage dots
   if ($petDots) {
@@ -219,6 +242,61 @@ function reopenPetModal() {
   updatePetConfirmBtn();
   const $addBtn = document.getElementById('pet-add-btn');
   if ($addBtn) $addBtn.style.display = 'none';
+}
+
+// ---- PET SHOP ----
+function openShopModal() {
+  if (!state.pet) return;
+  renderShopGrid();
+  $shopModal.style.display = '';
+}
+
+function closeShopModal() {
+  $shopModal.style.display = 'none';
+}
+
+function renderShopGrid() {
+  if (!$shopGrid) return;
+  $shopGrid.innerHTML = PET_ACCESSORIES.map(a => {
+    const owned = state.petAccessories.includes(a.id);
+    const cantAfford = !owned && state.coins < a.price;
+    const cls = ['shop-item', owned ? 'owned' : '', cantAfford ? 'disabled' : ''].join(' ');
+    const action = owned
+      ? '<span class="shop-item-owner">✅ Owned</span>'
+      : `<span class="shop-item-price">🪙 ${a.price}</span>`;
+    return `
+      <div class="${cls}" data-id="${a.id}" onclick="buyAccessory('${a.id}')" role="button" tabindex="0" aria-label="Buy ${escapeAttr(a.name)} for ${a.price} coins">
+        <span class="shop-item-emoji">${a.emoji}</span>
+        <span class="shop-item-name">${a.name}</span>
+        ${action}
+      </div>
+    `;
+  }).join('');
+}
+
+function buyAccessory(id) {
+  const acc = PET_ACCESSORIES.find(a => a.id === id);
+  if (!acc || !state.pet) return;
+
+  if (state.petAccessories.includes(id)) {
+    showToast('Already owned! 🎉');
+    return;
+  }
+
+  if (state.coins < acc.price) {
+    showToast('Not enough coins! Complete more quests to earn more. 🪙');
+    return;
+  }
+
+  state.coins -= acc.price;
+  state.petAccessories.push(id);
+  saveState();
+  updateStatsBar();
+  renderPetSanctuary();
+  renderShopGrid();
+  showToast(`🎩 ${acc.name} bought! Your pet looks amazing!`);
+  playSound('coin');
+  playPetAnimation('happy');
 }
 
 function updatePetConfirmBtn() {
@@ -416,7 +494,7 @@ function init() {
     const hint = document.querySelector('.api-key-row .btn-ghost');
     if (hint) hint.style.display = 'none';
     // Empty state copy: there is no API key field or demo button here.
-    $emptyMsg.innerHTML = 'Type a task above and hit <strong>Questify!</strong>';
+    $emptyMsg.innerHTML = 'Type a task above and hit <strong>Make it tiny!</strong>';
     $emptyHint.textContent = 'Works instantly — the AI runs on our server. No setup needed.';
   }
 
@@ -472,6 +550,13 @@ function init() {
 
   // Pet click
   $petAvatar.addEventListener('click', handlePetClick);
+
+  // Pet shop
+  if ($petShopBtn) $petShopBtn.addEventListener('click', openShopModal);
+  if ($shopCloseBtn) $shopCloseBtn.addEventListener('click', closeShopModal);
+  $shopModal.addEventListener('click', (e) => {
+    if (e.target === $shopModal) closeShopModal();
+  });
 }
 
 // ---- STATE PERSISTENCE ----
@@ -1319,7 +1404,7 @@ async function handleQuestify() {
   }
 
   $questifyBtn.disabled = true;
-  $questifyBtn.innerHTML = '<span class="spinner"></span> Thinking...';
+  $questifyBtn.innerHTML = '<span class="spinner"></span> Making it tiny...';
 
   try {
     let steps;
@@ -1358,7 +1443,7 @@ async function handleQuestify() {
     if (isDemo) {
       showToast('🎮 Demo mode! Add your API key for real AI breakdowns.');
     } else {
-      showToast('⚡ Quest generated! Start with Step 1.');
+      showToast('⚡ Tiny steps ready! Start with Step 1.');
     }
 
   } catch (err) {
@@ -1366,11 +1451,11 @@ async function handleQuestify() {
       showToast('🔑 Paste your API key first, or click "Demo mode"');
     } else {
       showToast(`❌ ${err.message}`);
-      console.error('Questify error:', err);
+      console.error('Breakdown error:', err);
     }
   } finally {
     $questifyBtn.disabled = false;
-    $questifyBtn.innerHTML = '⚡ Questify!';
+    $questifyBtn.innerHTML = '⚡ Make it tiny!';
   }
 }
 
