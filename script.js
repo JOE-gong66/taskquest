@@ -4,10 +4,11 @@
 // ============================================================
 
 // Production (Netlify): API key lives server-side in env vars.
-// Local dev / GitHub Pages: key entered in browser, sent to local proxy, or demo mode.
-const IS_PRODUCTION = location.protocol === 'https:'
-  && !location.hostname.includes('localhost')
-  && !location.hostname.includes('github.io');
+// Local dev (python server.py): key entered in browser, sent to local proxy.
+const IS_PRODUCTION = location.protocol === 'https:' && !location.hostname.includes('localhost');
+
+// GitHub Pages → route API calls to the Netlify Function (still running on operational credits).
+const API_BASE = location.hostname.includes('github.io') ? 'https://lovely-conkies-70714e.netlify.app' : '';
 
 // ---- PET DATA ----
 const PET_TYPES = {
@@ -1275,7 +1276,7 @@ async function sendCoachMessage(text) {
       ? { mode: 'coach', step_title: stepTitle, messages: chat }
       : { mode: 'coach', step_title: stepTitle, messages: chat, api_key: state.apiKey || $apiKeyInput.value.trim(), provider: state.provider };
 
-    const res = await fetch('/api/questify', {
+    const res = await fetch(`${API_BASE}/api/questify`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -1335,7 +1336,7 @@ async function subdivideStep(stepId) {
       ? { mode: 'subdivide', task: step.title }
       : { mode: 'subdivide', task: step.title, api_key: state.apiKey || $apiKeyInput.value.trim(), provider: state.provider };
 
-    const res = await fetch('/api/questify', {
+    const res = await fetch(`${API_BASE}/api/questify`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -1441,7 +1442,7 @@ async function fetchTaskBreakdown(task) {
     ? { task: task, profileHint: profileHint || undefined }
     : { task: task, profileHint: profileHint || undefined, api_key: apiKey, provider: state.provider };
 
-  const response = await fetch('/api/questify', {
+  const response = await fetch(`${API_BASE}/api/questify`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
