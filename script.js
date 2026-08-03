@@ -86,6 +86,7 @@ const DEFAULT_STATE = {
   easyFont: false,        // easy-reading (OpenDyslexic) font toggle
   petInviteShown: false,  // has the pet invite been shown? (no bossy first-screen popup)
   revealedSteps: [],      // indices of collapsed steps the user chose to reveal in focus mode
+  stepEvents: [],          // [{ stepId, taskCategory, minutes, verbType, depth, outcome, shownAt, completedAt, at }]
 };
 
 let state = loadState();
@@ -653,7 +654,7 @@ function updateStatsBar() {
   $xpCurrent.textContent = state.totalXP;
   $xpBar.style.width = Math.min(100, Math.max(0, progress)) + '%';
   $coinsNum.textContent = state.coins;
-  $streakNum.textContent = state.streak || 1; // never show 0 — ADHD-friendly
+  $streakNum.textContent = state.bestStreak || 1; // show best, not current — ADHD-friendly: never goes down
 
   // Best streak as tooltip — a kid can hover to see their record
   const $statStreak = document.getElementById('stat-streak');
@@ -778,6 +779,20 @@ function showToast(message) {
   setTimeout(() => { $toast.style.display = 'none'; }, 2200);
 }
 
+// ---- ARIA LIVE (screen reader announcements) ----
+// Zero-width-space counter forces re-announcement of identical strings.
+let _announceCounter = 0;
+function announce(msg, kind = 'polite') {
+  const el = document.getElementById(`aria-live-${kind}`);
+  if (!el) return;
+  _announceCounter += 1;
+  // Clear then repopulate — screen readers only announce on content change
+  el.textContent = '';
+  requestAnimationFrame(() => {
+    el.textContent = '​'.repeat(_announceCounter % 10) + msg;
+  });
+}
+
 // ---- PARTICLES ----
 function burstParticles(x, y, count = 10, emoji = '✨') {
   for (let i = 0; i < count; i++) {
@@ -849,6 +864,10 @@ function completeStep(stepId, event) {
       }
     }
 
+    // Revert step event
+    const undoneEvent = state.stepEvents.find(e => e.stepId === stepId);
+    if (undoneEvent) { undoneEvent.outcome = ''; undoneEvent.completedAt = 0; undoneEvent.at = Date.now(); }
+
     state.completedStepIds = state.completedStepIds.filter(id => id !== stepId);
     if (card) card.classList.remove('completed', 'card-pop');
     playSound('undo');
@@ -869,6 +888,10 @@ function completeStep(stepId, event) {
     card.classList.add('completed', 'card-pop');
   }
 
+  // Log step event: completed
+  const stepEvent = state.stepEvents.find(e => e.stepId === stepId);
+  if (stepEvent) { stepEvent.outcome = 'completed'; stepEvent.completedAt = Date.now(); stepEvent.at = Date.now(); }
+
   // Reward + sound
   grantReward(event, 10, 5, 'Step complete!');
   playSound('complete');
@@ -888,6 +911,15 @@ function completeStep(stepId, event) {
   }
 
   renderQuestBoard();       // reveal the next step in focus mode
+
+  // Screen reader: announce XP + what's next
+  const nextIdx = state.activeQuest.steps.findIndex(s => !state.completedStepIds.includes(s.id));
+  if (nextIdx >= 0) {
+    const next = state.activeQuest.steps[nextIdx];
+    announce(`+10 XP, +5 coins. Next: ${next.title}. ${next.minutes} minutes.`);
+  } else {
+    announce('+10 XP, +5 coins. All steps complete!');
+  }
 
   // Also check daily quests
   renderDailyQuests();
@@ -977,17 +1009,29 @@ function renderQuestBoard() {
   // Focus mode: only the next undone step is fully visible; others collapse into slim bars.
   const focusOn = state.focusMode;
   const $focusBtn = document.getElementById('focus-toggle-btn');
-  if ($focusBtn) $focusBtn.textContent = focusOn ? '🔎 Just the next step' : '📋 Show all steps';
+  // Label = what clicking WILL do (action), NOT current state
+  if ($focusBtn) $focusBtn.textContent = focusOn ? '📋 Show all steps' : '🔎 Just the next step';
 
   const nextUndoneIdx = steps.findIndex(s => !state.completedStepIds.includes(s.id));
+
+  // Focus-mode progress — "Step 3 of 7" so ADHD users know where they stand
+  const $focusProgress = document.getElementById('focus-progress');
+  if ($focusProgress) {
+    if (focusOn && !allDone) {
+      const currentStepNum = nextUndoneIdx >= 0 ? nextUndoneIdx + 1 : steps.length;
+      $focusProgress.textContent = `Step ${currentStepNum} of ${steps.length}`;
+      $focusProgress.style.display = '';
+    } else {
+      $focusProgress.style.display = 'none';
+    }
+  }
 
   $stepsGrid.innerHTML = steps.map((s, i) => {
     const done = state.completedStepIds.includes(s.id);
 
-    // Collapse step if focus mode is on and this is neither done nor the next step.
-    // Tapping one collapsed bar reveals THAT step — never the whole wall.
-    const revealed = state.revealedSteps.includes(i);
-    if (focusOn && !done && i !== nextUndoneIdx && !revealed) {
+    // Focus mode: show only completed steps + the next undone step.
+    // revealedSteps is a non-focus-mode concept — focus mode always wins.
+    if (focusOn && !done && i !== nextUndoneIdx) {
       return `
         <div class="step-card step-card-collapsed" onclick="revealStep(${i})" title="Show this step" role="button" tabindex="0" aria-label="Press Enter to show this step: ${escapeAttr(s.title)}">
           <div class="step-number">${i + 1}</div>
@@ -1002,14 +1046,14 @@ function renderQuestBoard() {
         <div class="step-number">${done ? '✓' : i + 1}</div>
         <div class="step-content">
           <div class="step-title">${escapeHtml(s.title)}</div>
-          <div class="step-hint">💡 ${escapeHtml(s.hint)}</div>
+          <div class="step-hint"><span aria-hidden="true">💡</span> ${escapeHtml(s.hint)}</div>
           <div class="step-actions">
             <button class="step-action-btn step-action-subdivide" onclick="event.stopPropagation();subdivideStep('${s.id}')" title="Break this down into even smaller steps">🔍 Too big</button>
             <button class="step-action-btn step-action-coach" onclick="event.stopPropagation();openCoachPanel('${s.id}')" title="Chat with AI about this step">💬 Coach</button>
           </div>
         </div>
         <div class="step-meta">
-          <span class="step-time">⏱ ${s.minutes} min</span>
+          <span class="step-time"><span aria-hidden="true">⏱</span> ${s.minutes} min</span>
           <div class="step-check"></div>
         </div>
       </div>
@@ -1084,15 +1128,16 @@ function openCoachPanel(stepId) {
 
   coachStepId = stepId;
   const chat = getCoachChat(stepId);
+  const stepTitle = step.title || step.text || 'this step';
 
-  $coachContext.textContent = `Step: "${step.title}"`;
+  $coachContext.textContent = `Step: "${stepTitle}"`;
 
   // Render chat history + welcome if empty
   let html = '';
   if (chat.length === 0) {
     html = `
       <div class="coach-msg coach-msg-system">
-        👋 I'm your ADHD coach! This step: <strong>${escapeHtml(step.title)}</strong>.<br>
+        👋 I'm your ADHD coach! This step: <strong>${escapeHtml(stepTitle)}</strong>.<br>
         Click a quick action or type anything you're stuck on.
       </div>
     `;
@@ -1195,6 +1240,8 @@ async function sendCoachMessage(text) {
 
   finishTypewriter(); // finish any in-progress typing before sending a new message
 
+  const stepTitle = step.title || step.text || 'this step';
+
   // Disable input while waiting
   $coachInput.disabled = true;
   $coachSendBtn.disabled = true;
@@ -1208,8 +1255,8 @@ async function sendCoachMessage(text) {
 
   try {
     const payload = IS_PRODUCTION
-      ? { mode: 'coach', step_title: step.title, messages: chat }
-      : { mode: 'coach', step_title: step.title, messages: chat, api_key: state.apiKey || $apiKeyInput.value.trim(), provider: state.provider };
+      ? { mode: 'coach', step_title: stepTitle, messages: chat }
+      : { mode: 'coach', step_title: stepTitle, messages: chat, api_key: state.apiKey || $apiKeyInput.value.trim(), provider: state.provider };
 
     const res = await fetch('/api/questify', {
       method: 'POST',
@@ -1280,6 +1327,7 @@ async function subdivideStep(stepId) {
 
     if (!res.ok || data.error) {
       showToast('❌ ' + (data.error || 'Failed to break down step.'));
+      announce('Failed to split step. Please try again.', 'assertive');
       if (btn) { btn.disabled = false; btn.textContent = '🔍 Too big'; }
       return;
     }
@@ -1290,10 +1338,26 @@ async function subdivideStep(stepId) {
       title: s.title || `Sub-step ${i + 1}`,
       hint: s.hint || 'Tiny steps win.',
       minutes: Math.max(1, Math.min(60, parseInt(s.minutes) || 5)),
+      verbType: s.verbType || 'cognitive',
     }));
 
     const idx = state.activeQuest.steps.findIndex(s => s.id === stepId);
     const originalStep = { ...state.activeQuest.steps[idx] };
+
+    // Log split event for the original step
+    const origEv = state.stepEvents.find(e => e.stepId === stepId);
+    if (origEv) { origEv.outcome = 'split'; origEv.at = Date.now(); }
+    const parentDepth = origEv ? origEv.depth : 0;
+
+    // Log events for sub-steps (deeper by one level)
+    const eventNow = Date.now();
+    subSteps.forEach(s => {
+      state.stepEvents.push({
+        stepId: s.id, taskCategory: state.activeQuest.task, minutes: s.minutes,
+        verbType: s.verbType || 'cognitive', depth: parentDepth + 1,
+        outcome: '', shownAt: eventNow, completedAt: 0, at: eventNow,
+      });
+    });
 
     // Store undo info
     lastSubdivide = { stepIndex: idx, originalStep, newCount: subSteps.length, timestamp: Date.now() };
@@ -1308,6 +1372,7 @@ async function subdivideStep(stepId) {
     saveState();
     renderQuestBoard();
     showToast(`🔍 Broken into ${subSteps.length} tinier steps!`);
+    announce(`Step split into ${subSteps.length} smaller steps. First: ${subSteps[0].title}.`);
     playPetAnimation('bounce');
     showPetSpeech('Smaller steps = easier wins! 🌟');
   } catch (err) {
@@ -1319,6 +1384,12 @@ async function subdivideStep(stepId) {
 function undoSubdivide() {
   if (!lastSubdivide || !state.activeQuest) return;
   const { stepIndex, originalStep, newCount } = lastSubdivide;
+
+  // Clean up step events: delete sub-step events, revert original step
+  const subStepIds = state.activeQuest.steps.slice(stepIndex, stepIndex + newCount).map(s => s.id);
+  state.stepEvents = state.stepEvents.filter(e => !subStepIds.includes(e.stepId));
+  const origEv = state.stepEvents.find(e => e.stepId === originalStep.id);
+  if (origEv && origEv.outcome === 'split') { origEv.outcome = ''; origEv.at = Date.now(); }
 
   // Remove the sub-steps we inserted
   state.activeQuest.steps.splice(stepIndex, newCount, originalStep);
@@ -1334,6 +1405,7 @@ function undoSubdivide() {
   saveState();
   renderQuestBoard();
   showToast('↩️ Split undone — original step restored.');
+  announce(`Split undone. Original step restored: ${originalStep.title}.`);
   playPetAnimation('headTilt');
   showPetSpeech('Oops! Back to the original step.');
 }
@@ -1369,6 +1441,7 @@ async function fetchTaskBreakdown(task) {
     title: s.title || `Step ${i + 1}`,
     hint: s.hint || 'You got this.',
     minutes: Math.max(1, Math.min(60, parseInt(s.minutes) || 10)),
+    verbType: s.verbType || 'cognitive',
   }));
 }
 
@@ -1376,13 +1449,13 @@ async function fetchTaskBreakdown(task) {
 function getDemoSteps(task) {
   const demos = {
     default: [
-      { title: 'Open your assignment and read the directions once', hint: 'Just read them. You don\'t have to start yet.', minutes: 2 },
-      { title: 'Write down ONE question you have about it', hint: 'One sentence is enough. What\'s the confusing part?', minutes: 3 },
-      { title: 'Set a timer for 8 minutes', hint: 'Tell yourself: "I only have to work for 8 minutes."', minutes: 1 },
-      { title: 'Do the first problem or write the first line', hint: 'It doesn\'t need to be perfect. Starting is the win.', minutes: 5 },
-      { title: 'Take a 3-minute stretch break', hint: 'You made real progress. Get up, drink some water.', minutes: 3 },
-      { title: 'Come back and finish one more chunk', hint: 'Just one more piece. Then you can stop for real.', minutes: 8 },
-      { title: 'Celebrate — tell your pet what you finished', hint: 'Type "done" — you earned the XP!', minutes: 1 },
+      { title: 'Open your assignment and read the directions once', hint: 'Just read them. You don\'t have to start yet.', minutes: 2, verbType: 'physical' },
+      { title: 'Write down ONE question you have about it', hint: 'One sentence is enough. What\'s the confusing part?', minutes: 3, verbType: 'creative' },
+      { title: 'Set a timer for 8 minutes', hint: 'Tell yourself: "I only have to work for 8 minutes."', minutes: 1, verbType: 'physical' },
+      { title: 'Do the first problem or write the first line', hint: 'It doesn\'t need to be perfect. Starting is the win.', minutes: 5, verbType: 'creative' },
+      { title: 'Take a 3-minute stretch break', hint: 'You made real progress. Get up, drink some water.', minutes: 3, verbType: 'physical' },
+      { title: 'Come back and finish one more chunk', hint: 'Just one more piece. Then you can stop for real.', minutes: 8, verbType: 'cognitive' },
+      { title: 'Celebrate — tell your pet what you finished', hint: 'Type "done" — you earned the XP!', minutes: 1, verbType: 'social' },
     ],
   };
 
@@ -1392,6 +1465,7 @@ function getDemoSteps(task) {
     title: s.title,
     hint: s.hint,
     minutes: s.minutes,
+    verbType: s.verbType || 'cognitive',
   }));
 }
 
@@ -1427,6 +1501,16 @@ async function handleQuestify() {
     lastSubdivide = null;  // fresh quest, clear undo
     state.revealedSteps = []; // fresh quest, fresh collapse state
 
+    // Log step events for adaptive profiling (Task A)
+    const eventNow = Date.now();
+    steps.forEach(s => {
+      state.stepEvents.push({
+        stepId: s.id, taskCategory: task, minutes: s.minutes,
+        verbType: s.verbType || 'cognitive', depth: 0,
+        outcome: '', shownAt: eventNow, completedAt: 0, at: eventNow,
+      });
+    });
+
     // Reset input placeholder
     $taskInput.placeholder = 'e.g. "Finish my math homework" or "Write a book report" or "Read 20 pages"';
 
@@ -1443,8 +1527,10 @@ async function handleQuestify() {
 
     if (isDemo) {
       showToast('🎮 Demo mode! Add your API key for real AI breakdowns.');
+      announce(`Demo breakdown ready. ${steps.length} steps. First step: ${steps[0].title}.`);
     } else {
       showToast('⚡ Tiny steps ready! Start with Step 1.');
+      announce(`Task broken into ${steps.length} tiny steps. Step 1: ${steps[0].title}.`);
     }
 
   } catch (err) {
@@ -1452,6 +1538,7 @@ async function handleQuestify() {
       showToast('🔑 Paste your API key first, or click "Demo mode"');
     } else {
       showToast(`❌ ${err.message}`);
+      announce(`Error: ${err.message}. Please try again.`, 'assertive');
       console.error('Breakdown error:', err);
     }
   } finally {

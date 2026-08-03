@@ -10,7 +10,7 @@
   <!-- ===== PET SELECTION MODAL ===== -->
   <div class="pet-modal-overlay" id="pet-modal" style="display:none;">
     <div class="pet-modal-card">
-      <h2>🐾 Choose Your Companion!</h2>
+      <h2><span aria-hidden="true">🐾</span> Choose Your Companion!</h2>
       <p class="pet-modal-sub">They'll grow with you as you complete quests.</p>
       <div class="pet-choices" id="pet-choices">
         <!-- JS injected -->
@@ -19,33 +19,33 @@
         <label for="pet-name-input">Name your friend:</label>
         <input type="text" id="pet-name-input" placeholder="e.g. Ember" maxlength="12" autocomplete="off">
       </div>
-      <button class="btn-primary" id="pet-confirm-btn" disabled>✨ Start Adventure!</button>
+      <button class="btn-primary" id="pet-confirm-btn" disabled><span aria-hidden="true">✨</span> Start Adventure!</button>
       <button class="btn-ghost" id="pet-skip-btn" style="margin-top:8px;">Skip for now →</button>
     </div>
   </div>
 
   <!-- ===== HEADER / STATS BAR ===== -->
   <header class="stats-bar">
-    <div class="logo">⚔️ TaskQuest</div>
+    <div class="logo"><span aria-hidden="true">⚔️</span> TaskQuest</div>
     <div class="stats">
       <div class="stat" id="stat-level">
-        <span class="stat-icon">🎖️</span>
+        <span class="stat-icon" aria-hidden="true">🎖️</span>
         <span class="stat-label">Lv.<span id="level-num">1</span></span>
       </div>
       <div class="stat" id="stat-xp">
-        <span class="stat-icon">✨</span>
+        <span class="stat-icon" aria-hidden="true">✨</span>
         <div class="xp-bar-wrap">
           <div class="xp-bar" id="xp-bar"></div>
         </div>
         <span class="stat-label"><span id="xp-current">0</span> XP · <span id="xp-to-next">0</span> to Lv.<span id="next-level-num">2</span></span>
       </div>
       <div class="stat" id="stat-coins">
-        <span class="stat-icon">🪙</span>
+        <span class="stat-icon" aria-hidden="true">🪙</span>
         <span class="stat-label" id="coins-num">0</span>
       </div>
       <div class="stat" id="stat-streak">
-        <span class="stat-icon">🔥</span>
-        <span class="stat-label"><span id="streak-num">0</span> streak</span>
+        <span class="stat-icon" aria-hidden="true">🔥</span>
+        <span class="stat-label"><span id="streak-num">0</span> best streak</span>
       </div>
       <div class="stat" id="stat-sound">
         <button id="sound-btn" class="sound-btn" title="Sound level">
@@ -69,13 +69,14 @@
       <div class="input-row">
         <textarea
           id="task-input"
+          aria-label="What task are you stuck on?"
           placeholder='e.g. "Finish my math homework" or "Write a book report" or "Read 20 pages"'
           rows="2"
           maxlength="300"
         ></textarea>
         <button id="voice-btn" class="voice-btn" title="Say your task out loud" style="display:none;">🎤</button>
         <button id="questify-btn" class="btn-primary">
-          ⚡ Make it tiny!
+          <span aria-hidden="true">⚡</span> Make it tiny!
         </button>
       </div>
       <div class="api-key-row">
@@ -83,7 +84,7 @@
           <option value="deepseek">DeepSeek</option>
           <option value="openai">OpenAI</option>
         </select>
-        <input type="password" id="api-key" placeholder="Paste your API key here (stays on your machine)" />
+        <input type="password" id="api-key" aria-label="API key" placeholder="Paste your API key here (stays on your machine)" />
         <button id="demo-btn" class="btn-ghost">or try Demo mode</button>
       </div>
     </section>
@@ -92,22 +93,23 @@
     <section class="quest-board" id="quest-board" style="display:none;">
       <div class="board-header">
         <div>
-          <h2>🗺️ Your Quest</h2>
+          <h2><span aria-hidden="true">🗺️</span> Your Quest</h2>
           <span class="board-subtitle" id="original-task"></span>
         </div>
-        <button id="focus-toggle-btn" class="focus-toggle-btn" onclick="toggleFocusMode()">🔎 Just the next step</button>
+        <button id="focus-toggle-btn" class="focus-toggle-btn" onclick="toggleFocusMode()">Focus mode</button>
+        <span class="focus-progress" id="focus-progress" style="display:none;"></span>
       </div>
       <div class="steps-grid" id="steps-grid">
         <!-- Cards injected by JS -->
       </div>
       <div class="quest-complete-banner" id="quest-complete-banner" style="display:none;">
-        🎉 QUEST COMPLETE! +<span id="quest-xp-bonus">50</span> XP bonus!
+        <span aria-hidden="true">🎉</span> QUEST COMPLETE! +<span id="quest-xp-bonus">50</span> XP bonus!
       </div>
     </section>
 
     <!-- Daily Quests -->
     <section class="daily-quests" id="daily-quests-section" style="display:none;">
-      <h2>📋 Daily Quests</h2>
+      <h2><span aria-hidden="true">📋</span> Daily Quests</h2>
       <p class="subtitle">3 tiny quests, picked for you. No decisions needed.</p>
       <div class="daily-grid" id="daily-grid">
         <!-- Injected by JS -->
@@ -116,7 +118,7 @@
 
     <!-- Empty State (shown before first quest) -->
     <section class="empty-state" id="empty-state">
-      <div class="empty-illustration">🐉</div>
+      <div class="empty-illustration" aria-hidden="true">🐉</div>
       <h2>Ready to slay your first dragon?</h2>
       <p id="empty-msg">Type a task above and hit <strong>Make it tiny!</strong></p>
       <p class="hint" id="empty-hint">We'll break it into tiny steps you can actually start.</p>
@@ -133,16 +135,16 @@
   <div class="coach-panel" id="coach-panel" style="display:none;">
     <div class="coach-header">
       <div>
-        <div class="coach-header-label">💬 AI Coach</div>
+        <div class="coach-header-label"><span aria-hidden="true">💬</span> AI Coach</div>
         <div class="coach-step-context" id="coach-step-context"></div>
       </div>
       <button class="coach-close-btn" id="coach-close-btn">✕</button>
     </div>
     <div class="coach-quick-actions" id="coach-quick-actions">
-      <button class="coach-quick-btn" data-action="brainstorm" title="Help me brainstorm 3 quick ideas related to this step.">🧠 Brainstorm ideas</button>
-      <button class="coach-quick-btn" data-action="explain" title="Explain this step to me in a completely different way.">🔄 Explain differently</button>
-      <button class="coach-quick-btn" data-action="starter" title="Write me ONE tiny starter sentence to begin this step.">📝 Write a starter</button>
-      <button class="coach-quick-btn" data-action="guide" title="Ask me one guiding question about this step.">💡 Guide me with a question</button>
+      <button class="coach-quick-btn" data-action="brainstorm" title="Help me brainstorm 3 quick ideas related to this step."><span aria-hidden="true">🧠</span> Brainstorm ideas</button>
+      <button class="coach-quick-btn" data-action="explain" title="Explain this step to me in a completely different way."><span aria-hidden="true">🔄</span> Explain differently</button>
+      <button class="coach-quick-btn" data-action="starter" title="Write me ONE tiny starter sentence to begin this step."><span aria-hidden="true">📝</span> Write a starter</button>
+      <button class="coach-quick-btn" data-action="guide" title="Ask me one guiding question about this step."><span aria-hidden="true">💡</span> Guide me with a question</button>
     </div>
     <div class="coach-messages" id="coach-messages">
       <div class="coach-msg coach-msg-system">
@@ -150,7 +152,7 @@
       </div>
     </div>
     <div class="coach-input-row">
-      <textarea id="coach-input" placeholder="I'm stuck on... or ask me anything..." rows="2"></textarea>
+      <textarea id="coach-input" aria-label="Message for AI coach" placeholder="I'm stuck on... or ask me anything..." rows="2"></textarea>
       <button class="coach-send-btn" id="coach-send-btn">➤</button>
     </div>
   </div>
@@ -173,14 +175,14 @@
       <span class="pet-emoji" id="pet-emoji"></span>
     </div>
     <div class="pet-name-tag" id="pet-name-tag"></div>
-    <button class="pet-add-btn" id="pet-add-btn" title="Get a companion!" style="display:none;">+🐾</button>
-    <button class="pet-shop-btn" id="pet-shop-btn" title="Pet shop — dress up your friend!" style="display:none;">🛍️</button>
+    <button class="pet-add-btn" id="pet-add-btn" title="Get a companion!" aria-label="Get a companion!" style="display:none;">+<span aria-hidden="true">🐾</span></button>
+    <button class="pet-shop-btn" id="pet-shop-btn" title="Pet shop — dress up your friend!" aria-label="Pet shop — dress up your friend!" style="display:none;"><span aria-hidden="true">🛍️</span></button>
   </div>
 
   <!-- ===== PET SHOP MODAL ===== -->
   <div class="pet-modal-overlay" id="shop-modal" style="display:none;">
     <div class="pet-modal-card">
-      <h2>🛍️ Pet Shop</h2>
+      <h2><span aria-hidden="true">🛍️</span> Pet Shop</h2>
       <p class="pet-modal-sub">Spend your coins to dress up your friend!</p>
       <div class="shop-grid" id="shop-grid">
         <!-- JS injected -->
@@ -188,6 +190,10 @@
       <button class="btn-ghost" id="shop-close-btn" style="margin-top:12px;">Close</button>
     </div>
   </div>
+
+  <!-- Screen reader live regions -->
+  <div class="sr-only" id="aria-live-polite" aria-live="polite" aria-atomic="true"></div>
+  <div class="sr-only" id="aria-live-assertive" aria-live="assertive" aria-atomic="true"></div>
 
   <script src="script.js"></script>
 </body>

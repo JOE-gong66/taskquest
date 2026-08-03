@@ -18,10 +18,16 @@ RULES:
 FORMAT:
 {
   "steps": [
-    { "title": "Open Google Docs and name the file", "hint": "You don't need to write anything yet — just open it.", "minutes": 2 },
-    { "title": "Write one messy sentence as your opening", "hint": "It can be terrible. Getting words on the page is the goal.", "minutes": 5 }
+    { "title": "Open Google Docs and name the file", "hint": "You don't need to write anything yet — just open it.", "minutes": 2, "verbType": "physical" },
+    { "title": "Write one messy sentence as your opening", "hint": "It can be terrible. Getting words on the page is the goal.", "minutes": 5, "verbType": "creative" }
   ]
 }
+
+verbType must be one of: "physical" | "cognitive" | "social" | "creative".
+- physical = opening / getting / sitting / clicking — an observable body action
+- cognitive = thinking / planning / organizing / remembering — a mental action
+- social = asking / texting / showing — involving another person
+- creative = writing / drawing / building — producing something new
 
 Give 4–7 steps. The first step must be absurdly easy — something the user can do in under 3 minutes.`;
 
@@ -36,10 +42,12 @@ RULES:
 FORMAT:
 {
   "steps": [
-    { "title": "...", "hint": "...", "minutes": 2 },
-    { "title": "...", "hint": "...", "minutes": 3 }
+    { "title": "...", "hint": "...", "minutes": 2, "verbType": "physical" },
+    { "title": "...", "hint": "...", "minutes": 3, "verbType": "cognitive" }
   ]
-}`;
+}
+
+verbType must be one of: "physical" | "cognitive" | "social" | "creative".`;
 
 const COACH_SYSTEM = `You are an ADHD-friendly task coach helping a user work through a specific micro-step.
 
@@ -75,6 +83,7 @@ function parseLLMResponse(content) {
     title: (s.title || `Step ${i + 1}`).toString(),
     hint: (s.hint || 'You got this.').toString(),
     minutes: Math.max(1, Math.min(60, parseInt(s.minutes) || 10)),
+    verbType: ['physical','cognitive','social','creative'].includes(s.verbType) ? s.verbType : 'cognitive',
   }));
 }
 
