@@ -4,8 +4,10 @@
 // ============================================================
 
 // Production (Netlify): API key lives server-side in env vars.
-// Local dev (python server.py): key entered in browser, sent to local proxy.
-const IS_PRODUCTION = location.protocol === 'https:' && !location.hostname.includes('localhost');
+// Local dev / GitHub Pages: key entered in browser, sent to local proxy, or demo mode.
+const IS_PRODUCTION = location.protocol === 'https:'
+  && !location.hostname.includes('localhost')
+  && !location.hostname.includes('github.io');
 
 // ---- PET DATA ----
 const PET_TYPES = {
