@@ -1653,6 +1653,91 @@ function renderDailyQuests() {
   saveState();
 }
 
+// ---- USER PROFILE (adaptive step sizing) ----
+// Pure function. Input: stepEvents array. Output: profile object.
+// No ML — just median / quartile / group counts.
+function buildUserProfile(stepEvents) {
+  // Cold start: < 5 events → conservative defaults (smaller steps are safer)
+  if (!stepEvents || stepEvents.length < 5) {
+    return {
+      granularityThreshold: 3, splitCeiling: 8, bestVerbs: [],
+      chainLength: 1, hardCategories: [], isColdStart: true,
+    };
+  }
+
+  // --- granularityThreshold: median minutes of steps completed without split ---
+  const completedClean = stepEvents
+    .filter(e => e.outcome === 'completed')
+    .map(e => Math.max(0.5, e.minutes || 0))
+    .sort((a, b) => a - b);
+  let granularityThreshold = 3;
+  if (completedClean.length > 0) {
+    const mid = Math.floor(completedClean.length / 2);
+    granularityThreshold = completedClean.length % 2 === 0
+      ? Math.round(((completedClean[mid - 1] + completedClean[mid]) / 2) * 2) / 2
+      : completedClean[mid];
+  }
+  granularityThreshold = Math.max(0.5, granularityThreshold);
+
+  // --- splitCeiling: lower quartile of minutes for split steps ---
+  const splitMinutes = stepEvents
+    .filter(e => e.outcome === 'split')
+    .map(e => Math.max(0.5, e.minutes || 0))
+    .sort((a, b) => a - b);
+  let splitCeiling = 8;
+  if (splitMinutes.length > 0) {
+    const q1Idx = Math.max(0, Math.floor(splitMinutes.length / 4));
+    splitCeiling = splitMinutes[q1Idx];
+  }
+  splitCeiling = Math.max(0.5, splitCeiling);
+
+  // --- bestVerbs: completion rate by verbType, sorted best-first ---
+  const verbStats = {};
+  stepEvents.forEach(e => {
+    const v = e.verbType || 'cognitive';
+    if (!verbStats[v]) verbStats[v] = { total: 0, completed: 0 };
+    verbStats[v].total++;
+    if (e.outcome === 'completed') verbStats[v].completed++;
+  });
+  const bestVerbs = Object.entries(verbStats)
+    .map(([verb, s]) => ({ verb, rate: s.total > 0 ? s.completed / s.total : 0 }))
+    .sort((a, b) => b.rate - a.rate);
+
+  // --- chainLength: average consecutive completions per session (2h window) ---
+  const completedEvents = stepEvents
+    .filter(e => e.outcome === 'completed' && e.completedAt > 0)
+    .sort((a, b) => a.completedAt - b.completedAt);
+  let chainLength = 1;
+  const TWO_HOURS = 2 * 60 * 60 * 1000;
+  if (completedEvents.length > 0) {
+    const sessions = [];
+    let cur = [completedEvents[0]];
+    for (let i = 1; i < completedEvents.length; i++) {
+      if (completedEvents[i].completedAt - completedEvents[i - 1].completedAt < TWO_HOURS) {
+        cur.push(completedEvents[i]);
+      } else {
+        sessions.push(cur.length); cur = [completedEvents[i]];
+      }
+    }
+    sessions.push(cur.length);
+    chainLength = Math.max(1, Math.round(sessions.reduce((a, b) => a + b, 0) / sessions.length));
+  }
+
+  // --- hardCategories: highest average depth by taskCategory ---
+  const catStats = {};
+  stepEvents.forEach(e => {
+    if (!e.taskCategory) return;
+    if (!catStats[e.taskCategory]) catStats[e.taskCategory] = { totalDepth: 0, count: 0 };
+    catStats[e.taskCategory].totalDepth += Math.min(4, e.depth || 0);
+    catStats[e.taskCategory].count++;
+  });
+  const hardCategories = Object.entries(catStats)
+    .map(([cat, s]) => ({ category: cat, avgDepth: s.count > 0 ? s.totalDepth / s.count : 0 }))
+    .sort((a, b) => b.avgDepth - a.avgDepth);
+
+  return { granularityThreshold, splitCeiling, bestVerbs, chainLength, hardCategories, isColdStart: false };
+}
+
 // ---- UTILS ----
 function escapeHtml(str) {
   const div = document.createElement('div');
