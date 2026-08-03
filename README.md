@@ -2,7 +2,9 @@
 
 **Built for IncludAI — The Neurodiversity Hackathon (with Stanford NNEA), 2026.**
 
-TaskQuest breaks overwhelming tasks into tiny, impossibly-easy micro-steps and wraps them in game mechanics — XP, coins, streaks, and escalating "kill-streak" sound effects — so a frozen ADHD brain can actually *start*.
+TaskQuest is an AI-powered game that breaks overwhelming schoolwork into tiny, impossibly-easy micro-steps — so a K-12 student with ADHD or executive dysfunction can actually *start* instead of freezing at the assignment.
+
+XP, coins, streaks, a growing pet companion, and escalating "kill-streak" sound effects turn homework into a quest a kid actually wants to begin.
 
 > Built by a neurodivergent learner, for neurodivergent learners. Nothing about us without us.
 
@@ -10,7 +12,7 @@ TaskQuest breaks overwhelming tasks into tiny, impossibly-easy micro-steps and w
 
 ## 🎯 The Problem
 
-People with ADHD and executive dysfunction often experience **task-initiation freeze**: facing a large task ("write my essay", "clean my room"), the brain simply cannot start. Traditional to-do apps assume a user who can plan — but the hard part for us isn't *knowing* what to do, it's *starting*.
+People with ADHD and executive dysfunction often experience **task-initiation freeze**: facing a large assignment ("write my book report", "finish my math homework", "read 20 pages"), the brain simply cannot start. Traditional to-do apps assume a user who can plan — but the hard part for neurodivergent K-12 students isn't *knowing* what to do, it's *starting*.
 
 ## ✨ The Solution
 
@@ -20,13 +22,17 @@ People with ADHD and executive dysfunction often experience **task-initiation fr
 
 ## 🎮 Features
 
-- AI-powered micro-task breakdown (DeepSeek)
-- XP / level system with progress bar
-- Coin rewards + streak multiplier
-- Escalating kill-streak sound effects (3 volume levels)
+- AI-powered micro-task breakdown (DeepSeek) — any assignment becomes 4–7 steps of 2–15 minutes
+- **"Too big" button** — one click breaks any still-overwhelming step into even tinier sub-steps
+- **AI Coach** — chat with a warm ADHD coach about a stuck step; short 1–3 sentence replies that don't overwhelm
+- **Growing pet companion** — pick a pet, name it, and watch it evolve as you level up
+- **Focus mode** (default) — shows only your next step, so the path never looks scary
+- XP / level system with progress bar + "X to next level" countdown
+- Coin rewards + streak multiplier (a missed day resets the streak — nothing bad happens)
+- Escalating kill-streak sound effects (3 volume levels, respects reduce-motion)
 - Daily quests — 3 tiny tasks per day, no decisions needed
 - Click-to-complete with instant undo (rewards fully reversed)
-- All data stays in the browser (localStorage) — no account, no tracking
+- All data stays in the browser (localStorage) — no account, no tracking, no ads
 
 ## 🛠 Tech Stack
 
@@ -37,11 +43,11 @@ People with ADHD and executive dysfunction often experience **task-initiation fr
 
 ## 🚀 Live Demo
 
-[Live Demo Link]
+**[Try TaskQuest live](https://lovely-conkies-70714e.netlify.app/)** — no sign-up, no API key needed, works instantly.
 
 ## 🧠 Designed With Real Neurodivergent Users
 
-This project is designed and validated by a neurodivergent (ADHD) learner. The core insight — that task initiation, not task understanding, is the real barrier — comes from lived experience. *(Expand with user testing notes.)*
+This project is designed and validated by a neurodivergent (ADHD) learner. The core insight — that task initiation, not task understanding, is the real barrier — comes from lived experience. *(Expand with K-12 user testing notes.)*
 
 ## 📄 Submission Materials
 
