@@ -172,6 +172,23 @@ This was **not implemented in the hackathon submission** because:
 
 ---
 
+## Development Notes
+
+This project was built solo between August 1–7, 2026, using AI-assisted
+development (Claude Code with DeepSeek). All architecture decisions, the
+adaptive-profiling design, the accessibility requirements, and every
+user-facing string were specified and reviewed by me; AI accelerated
+implementation.
+
+Two decisions worth naming, because they came from lived experience rather
+than from a model: replacing the streak counter with a best-streak counter
+(a reset triggers the exact shame response the tool exists to avoid), and
+rewriting all 65 user-facing strings to remove deficit framing.
+
+No pre-existing code or assets were used.
+
+---
+
 ## Acknowledgments
 
 Built with ❤️ during the IncludAI 2026 Hackathon.

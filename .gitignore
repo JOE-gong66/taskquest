@@ -2,3 +2,5 @@ node_modules/
 .netlify/
 server.log
 .DS_Store
+.env
+.env.*
