@@ -513,17 +513,15 @@ function init() {
 
   // Render UI
   updateStatsBar();
-  renderDailyQuests();
   if (state.activeQuest) {
     renderQuestBoard();
+    renderDailyQuests();
   } else {
     $questBoard.style.display = 'none';
     $emptyState.style.display = '';
-  }
-
-  // If no active quest but it's a new day, generate dailies
-  if (Object.keys(state.dailyQuests).length === 0) {
-    generateDailyQuests();
+    // First visit: hide daily quests — reduce decision load until first step is done
+    $dailySection.style.display = 'none';
+    generateDailyQuests(); // still generate in background for when they do finish
   }
 
   // --- Pet init ---
@@ -1543,6 +1541,9 @@ async function handleQuestify() {
 
     saveState();
     renderQuestBoard();
+    // Show daily quests now that user has started their first quest
+    $dailySection.style.display = '';
+    renderDailyQuests();
 
     // Scroll to quest board
     $questBoard.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -2150,6 +2151,15 @@ $demoBtn.addEventListener('click', () => {
   saveState();
   handleQuestify();
 });
+
+// "🪄 Show me an example" button — one-click demo for first-time visitors
+const $tryDemoBtn = document.getElementById('try-demo-btn');
+if ($tryDemoBtn) {
+  $tryDemoBtn.addEventListener('click', () => {
+    $taskInput.value = 'Write a book report about Charlotte\'s Web';
+    handleQuestify();
+  });
+}
 
 // --- Coach panel events ---
 $coachCloseBtn.addEventListener('click', closeCoachPanel);
